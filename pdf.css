@@ -1,0 +1,827 @@
+/* ============================================================================
+   pdf.css — Sistema de Exportação PDF
+   ============================================================================ */
+
+
+/* ── BOTÃO DE TRIGGER ─────────────────────────────────────────────────────── */
+#openPdfExportBtn,
+.pdf-export-trigger-btn {
+    background:  linear-gradient(135deg, #ef4444, #dc2626) !important;
+    color:       #fff !important;
+    border:      none !important;
+    box-shadow:  0 4px 12px rgba(239, 68, 68, 0.4) !important;
+    outline:     none !important;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    transition:  all 0.25s ease !important;
+}
+#openPdfExportBtn:hover,
+.pdf-export-trigger-btn:hover {
+    background:  linear-gradient(135deg, #f87171, #ef4444) !important;
+    transform:   translateY(-2px) !important;
+    box-shadow:  0 6px 20px rgba(239, 68, 68, 0.6) !important;
+}
+#openPdfExportBtn i,
+.pdf-export-trigger-btn i { color: white !important; }
+
+
+/* ── OVERLAY DO MODAL ─────────────────────────────────────────────────────── */
+.pdf-export-modal-overlay {
+    display:         none;
+    position:        fixed;
+    inset:           0;
+    background:      rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(10px);
+    z-index:         9998;
+    overflow-y:      auto;
+    padding:         12px;
+    box-sizing:      border-box;
+}
+
+.pdf-export-modal-content {
+    background:    #1e1e2a;
+    border-radius: 20px;
+    max-width:     1300px;
+    width:         100%;
+    margin:        0 auto;
+    box-shadow:    0 24px 64px rgba(0,0,0,0.8), 0 0 0 1px rgba(239,68,68,0.2);
+    border:        1px solid rgba(239, 68, 68, 0.15);
+    overflow:      hidden;
+    animation:     pdfModalSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position:      relative;
+}
+.pdf-export-modal-content::before {
+    content:    '';
+    position:   absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(239,68,68,0.6), transparent);
+}
+
+
+/* ── CABEÇALHO ────────────────────────────────────────────────────────────── */
+.pdf-export-header {
+    display:         flex;
+    align-items:     center;
+    justify-content: space-between;
+    padding:         22px 32px;
+    background:      linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    position:        relative;
+    flex-shrink:     0;
+}
+.pdf-export-header::before {
+    content:    '';
+    position:   absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+}
+.pdf-export-header-left { display: flex; align-items: center; gap: 18px; }
+.pdf-export-header-icon {
+    width:         58px; height: 58px;
+    background:    rgba(255,255,255,0.2);
+    border-radius: 16px;
+    display:       flex; align-items: center; justify-content: center;
+    font-size:     1.7rem; color: white;
+    flex-shrink:   0;
+    box-shadow:    0 4px 12px rgba(0,0,0,0.2);
+    backdrop-filter: blur(4px);
+}
+.pdf-export-header h3 { margin: 0; font-size: 1.45rem; font-weight: 800; color: white; letter-spacing: -0.3px; }
+.pdf-export-subtitle  { margin: 5px 0 0; font-size: 0.9rem; color: rgba(255,255,255,0.7); font-weight: 500; }
+.pdf-export-header .close { background: rgba(255,255,255,0.15) !important; border-radius: 10px !important; }
+.pdf-export-header .close:hover { background: rgba(255,255,255,0.28) !important; }
+
+
+/* ── CORPO ────────────────────────────────────────────────────────────────── */
+.pdf-export-body {
+    display:               grid;
+    grid-template-columns: 340px 1fr;
+    gap:                   0;
+    height:                620px;
+    overflow:              hidden;
+}
+
+
+/* ── COLUNA ESQUERDA ──────────────────────────────────────────────────────── */
+.pdf-export-left {
+    padding:    28px 22px;
+    border-right: 1px solid rgba(255,255,255,0.07);
+    background: #13131a;
+    height:     100%;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+.pdf-export-left::-webkit-scrollbar       { width: 6px; }
+.pdf-export-left::-webkit-scrollbar-track { background: #0a0a0f; }
+.pdf-export-left::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 3px; }
+
+.pdf-export-section-label {
+    font-size:      0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color:          #9ca3af;
+    margin-bottom:  10px;
+    display:        flex; align-items: center; gap: 6px;
+}
+.pdf-export-section-label i { color: #ef4444; font-size: 0.8rem; }
+
+
+/* ── GRID DE TIPOS ────────────────────────────────────────────────────────── */
+.pdf-type-grid { display: flex; flex-direction: column; gap: 6px; }
+
+.pdf-type-card-featured {
+    border:     2px solid rgba(239, 68, 68, 0.35) !important;
+    background: rgba(239, 68, 68, 0.08) !important;
+}
+.pdf-type-card-featured.active {
+    background:   rgba(239, 68, 68, 0.16) !important;
+    border-color: rgba(239, 68, 68, 0.7) !important;
+    box-shadow:   0 4px 20px rgba(239, 68, 68, 0.3) !important;
+}
+
+.pdf-type-card {
+    display:       flex; align-items: center; gap: 14px;
+    padding:       13px 14px;
+    background:    rgba(255,255,255,0.03);
+    border:        1.5px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    cursor:        pointer;
+    transition:    all 0.2s ease;
+    text-align:    left; width: 100%;
+}
+.pdf-type-card:hover {
+    background:   rgba(239,68,68,0.08);
+    border-color: rgba(239,68,68,0.3);
+    transform:    translateX(4px);
+}
+.pdf-type-card.active {
+    background:   rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.6);
+    box-shadow:   0 4px 16px rgba(239,68,68,0.2);
+}
+
+.pdf-type-icon {
+    width:         42px; height: 42px;
+    border-radius: 11px;
+    display:       flex; align-items: center; justify-content: center;
+    font-size:     1.1rem; color: white;
+    flex-shrink:   0;
+    box-shadow:    0 3px 10px rgba(0,0,0,0.3);
+}
+.pdf-type-info { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.pdf-type-name { font-size: 0.95rem; font-weight: 700; color: #f5f5f7; line-height: 1; }
+.pdf-type-desc { font-size: 0.78rem; color: #6b7280; font-weight: 500; }
+.pdf-type-card.active .pdf-type-name { color: #fca5a5; }
+.pdf-type-card.active .pdf-type-desc { color: #f87171; opacity: 0.7; }
+
+
+/* ── COLUNA DIREITA ───────────────────────────────────────────────────────── */
+.pdf-export-right {
+    padding:        28px 28px 22px;
+    display:        flex;
+    flex-direction: column;
+    gap:            0;
+    height:         100%;
+    overflow-y:     auto;
+    overflow-x:     hidden;
+    box-sizing:     border-box;
+}
+.pdf-export-right::-webkit-scrollbar       { width: 6px; }
+.pdf-export-right::-webkit-scrollbar-track { background: #13131a; }
+.pdf-export-right::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 3px; }
+
+
+/* ── PAINEL DE CONFIGURAÇÃO ───────────────────────────────────────────────── */
+.pdf-config-panel {
+    background:     rgba(255,255,255,0.03);
+    border:         1px solid rgba(255,255,255,0.07);
+    border-radius:  12px;
+    padding:        14px 16px;
+    margin-bottom:  4px;
+    flex-shrink:    0;
+    display:        flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.pdf-config-info { display: flex; align-items: center; gap: 10px; color: #9ca3af; font-size: 0.875rem; line-height: 1.5; }
+.pdf-config-info i { color: #3b82f6; font-size: 1rem; flex-shrink: 0; }
+.pdf-config-group { display: flex; flex-direction: column; gap: 6px; }
+.pdf-config-label { font-size: 0.8rem; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.pdf-config-select,
+.pdf-config-input {
+    padding:       10px 12px;
+    background:    #13131a;
+    border:        2px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    color:         #f5f5f7;
+    font-size:     0.9rem; font-weight: 500;
+    transition:    all 0.2s ease;
+    width:         100%; box-sizing: border-box;
+    cursor:        pointer;
+}
+.pdf-config-select:focus,
+.pdf-config-input:focus { outline: none; border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.15); background: #1a1a28; }
+.pdf-config-select option { background: #13131a; color: #f5f5f7; }
+
+
+/* ── INPUT DE DATA COM ÍCONE (período) ────────────────────────────────────── */
+.pdf-dp-input-wrapper {
+    position: relative;
+    width:    100%;
+}
+
+.pdf-dp-text-input {
+    width:         100%;
+    padding:       10px 40px 10px 12px;
+    background:    #13131a;
+    border:        2px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    color:         #f5f5f7;
+    font-size:     0.9rem; font-weight: 500;
+    cursor:        pointer;
+    transition:    all 0.2s ease;
+    box-sizing:    border-box;
+    caret-color:   transparent;
+}
+.pdf-dp-text-input:hover  { border-color: rgba(139, 92, 246, 0.4); }
+.pdf-dp-text-input:focus  { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 4px rgba(139,92,246,0.15); }
+.pdf-dp-text-input::placeholder { color: #4b5563; }
+
+.pdf-dp-input-icon {
+    position:    absolute;
+    right:       12px; top: 50%;
+    transform:   translateY(-50%);
+    color:       #ef4444;
+    font-size:   0.95rem;
+    pointer-events: none;
+}
+
+/* Linha lado a lado para Data início / Data fim */
+.pdf-periodo-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+
+/* ── PREVIEW ──────────────────────────────────────────────────────────────── */
+.pdf-preview-box {
+    flex:          1;
+    min-height:    220px;
+    background:    #13131a;
+    border:        1.5px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow-y:    auto;
+    overflow-x:    hidden;
+    margin-bottom: 16px;
+    position:      relative;
+    scrollbar-width: thin;
+    scrollbar-color: #ef4444 #0a0a0f;
+}
+.pdf-preview-box::-webkit-scrollbar       { width: 6px; }
+.pdf-preview-box::-webkit-scrollbar-track { background: #0a0a0f; border-radius: 3px; }
+.pdf-preview-box::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #ef4444, #dc2626); border-radius: 3px; }
+.pdf-preview-box::-webkit-scrollbar-thumb:hover { background: #f87171; }
+
+.pdf-preview-loading {
+    display:        flex;
+    flex-direction: column;
+    align-items:    center;
+    justify-content: center;
+    height:         100%;
+    min-height:     200px;
+    gap:            10px;
+    color:          #6b7280;
+    font-size:      0.9rem;
+}
+.pdf-preview-loading i { font-size: 2rem; opacity: 0.3; color: #ef4444; }
+.pdf-preview-inner { padding: 14px 16px; height: 100%; }
+
+.pdf-preview-doc-header {
+    display:       flex;
+    align-items:   center;
+    gap:           12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 12px;
+}
+.pdf-preview-doc-icon {
+    width:         40px; height: 40px;
+    background:    linear-gradient(135deg, #ef4444, #dc2626);
+    border-radius: 10px;
+    display:       flex; align-items: center; justify-content: center;
+    font-size:     1.1rem; color: white;
+    flex-shrink:   0;
+    box-shadow:    0 4px 12px rgba(239,68,68,0.3);
+}
+.pdf-preview-doc-title { font-size: 0.95rem; font-weight: 700; color: #f5f5f7; }
+.pdf-preview-doc-sub   { font-size: 0.75rem; color: #6b7280; margin-top: 2px; }
+
+.pdf-preview-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.pdf-preview-stat  {
+    background:    rgba(255,255,255,0.03);
+    border-radius: 10px;
+    padding:       10px 14px;
+    display:       flex;
+    flex-direction: column;
+    gap:           4px;
+    border-left:   3px solid #8b5cf6;
+    min-width:     80px;
+}
+.pdf-preview-stat-label { font-size: 0.72rem; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.pdf-preview-stat-value { font-size: 1.05rem; font-weight: 800; font-family: 'Courier New', monospace; color: #8b5cf6; }
+
+.pdf-preview-table-mock {
+    background:    rgba(255,255,255,0.02);
+    border:        1px solid rgba(255,255,255,0.06);
+    border-radius: 8px;
+    overflow:      hidden;
+}
+.pdf-preview-table-header {
+    background:    rgba(139,92,246,0.15);
+    padding:       6px 12px;
+    display:       flex;
+    justify-content: space-between;
+    font-size:     0.7rem;
+    font-weight:   700;
+    color:         #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ── LINHA DA PRÉVIA — ALINHAMENTO CORRIGIDO ──────────────────────────────── */
+.pdf-preview-table-row {
+    display:       flex;
+    align-items:   center;
+    gap:           8px;
+    padding:       5px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size:     0.78rem;
+}
+.pdf-preview-table-row:last-child { border-bottom: none; }
+
+/* Nome do cliente — ocupa todo espaço disponível, trunca se necessário */
+.pprow-client {
+    flex:          1;
+    min-width:     0;
+    color:         #d1d5db;
+    font-weight:   600;
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+}
+
+/* Valor — largura fixa, alinhado à direita */
+.pprow-val {
+    width:       90px;
+    flex-shrink: 0;
+    color:       #10b981;
+    font-weight: 700;
+    font-family: monospace;
+    white-space: nowrap;
+    text-align:  right;
+}
+
+/* Status — largura fixa, alinhado à ESQUERDA para que P de Pago/Parcial/Pendente fique sempre rente */
+.pprow-status {
+    width:       62px;
+    flex-shrink: 0;
+    font-weight: 700;
+    white-space: nowrap;
+    font-size:   0.72rem;
+    text-align:  left;
+}
+
+.pdf-preview-more { padding: 5px 12px; font-size: 0.72rem; color: #6b7280; font-style: italic; background: rgba(255,255,255,0.01); }
+
+
+/* ── EXPANDIR LINHAS DA PRÉVIA ────────────────────────────────────────────── */
+.pdf-preview-expand-rows  { border-top: 1px solid rgba(255,255,255,0.04); }
+.pdf-preview-expand-scroll { overflow: visible; }
+
+.pdf-preview-more-btn {
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    gap:            7px;
+    width:          100%;
+    padding:        8px 12px;
+    background:     rgba(13, 13, 24, 0.95);
+    border:         none;
+    border-top:     1px solid rgba(139, 92, 246, 0.25);
+    color:          #a78bfa;
+    font-size:      0.78rem;
+    font-weight:    600;
+    cursor:         pointer;
+    transition:     all 0.2s ease;
+    letter-spacing: 0.2px;
+    position:       sticky;
+    bottom:         0;
+    z-index:        2;
+}
+.pdf-preview-more-btn:hover { background: rgba(139, 92, 246, 0.12); color: #c4b5fd; }
+
+.pdf-expand-icon {
+    font-size:   0.72rem;
+    transition:  transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+
+/* ── BOTÃO GERAR ──────────────────────────────────────────────────────────── */
+.pdf-generate-btn {
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    gap:            12px;
+    padding:        16px 24px;
+    background:     linear-gradient(135deg, #ef4444, #dc2626);
+    color:          white;
+    border:         none;
+    border-radius:  14px;
+    font-size:      1rem;
+    font-weight:    700;
+    cursor:         pointer;
+    letter-spacing: 0.3px;
+    transition:     all 0.25s ease;
+    box-shadow:     0 4px 16px rgba(239,68,68,0.4);
+    width:          100%;
+    text-transform: uppercase;
+    position:       relative;
+    overflow:       hidden;
+    flex-shrink:    0;
+}
+.pdf-generate-btn::before {
+    content:    '';
+    position:   absolute; top: 0; left: -100%;
+    width:      100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transition: left 0.5s ease;
+}
+.pdf-generate-btn:hover::before { left: 100%; }
+.pdf-generate-btn:hover         { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(239,68,68,0.6); }
+.pdf-generate-btn:active        { transform: scale(0.98); }
+.pdf-generate-btn:disabled      { background: linear-gradient(135deg, #4b5563, #374151); box-shadow: none; cursor: not-allowed; transform: none !important; }
+.pdf-generate-btn i             { font-size: 1.1rem; }
+
+.pdf-generate-btn[data-generating='true'] { cursor: not-allowed; pointer-events: none; opacity: 0.85; }
+.pdf-generate-btn .fa-spinner   { animation: fa-spin 0.7s linear infinite; }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   OVERLAY DO PICKER DE DATA DO PDF
+   ════════════════════════════════════════════════════════════════════════════ */
+#pdfDatePickerSharedOverlay { z-index: 19999 !important; }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CUSTOM SELECT DO PDF
+   ════════════════════════════════════════════════════════════════════════════ */
+.pdf-csel-wrapper { position: relative; width: 100%; }
+
+.pdf-csel-trigger {
+    display:        flex;
+    align-items:    center;
+    justify-content: space-between;
+    gap:            8px;
+    padding:        10px 14px;
+    background:     #13131a;
+    border:         2px solid rgba(255,255,255,0.08);
+    border-radius:  10px;
+    color:          #f5f5f7;
+    font-size:      0.9rem;
+    font-weight:    500;
+    cursor:         pointer;
+    transition:     all 0.2s ease;
+    user-select:    none;
+    width:          100%;
+    box-sizing:     border-box;
+}
+.pdf-csel-trigger:hover { border-color: rgba(239,68,68,0.35); }
+.pdf-csel-trigger.open  { border-color: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.15); background: #1a1a28; }
+
+.pdf-csel-text          { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #6b7280; font-size: 0.88rem; }
+.pdf-csel-text-selected { color: #f5f5f7; }
+.pdf-csel-arrow         { color: #6b7280; font-size: 0.8rem; flex-shrink: 0; transition: transform 0.2s ease; }
+
+.pdf-csel-dropdown {
+    position:        absolute;
+    top:             calc(100% + 4px);
+    left:            0; right: 0;
+    background:      #1a1a28;
+    border:          2px solid rgba(239,68,68,0.3);
+    border-radius:   10px;
+    box-shadow:      0 8px 24px rgba(0,0,0,0.6);
+    z-index:         20000;
+    opacity:         0;
+    visibility:      hidden;
+    transform:       translateY(-6px) scaleY(0.96);
+    transform-origin: top;
+    transition:      opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0.18s;
+    overflow:        hidden;
+}
+.pdf-csel-dropdown.open {
+    opacity:    1;
+    visibility: visible;
+    transform:  translateY(0) scaleY(1);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0s linear 0s;
+}
+
+.pdf-csel-list {
+    max-height:    200px;
+    overflow-y:    auto;
+    overflow-x:    hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #ef4444 #13131a;
+}
+.pdf-csel-list::-webkit-scrollbar       { width: 6px; }
+.pdf-csel-list::-webkit-scrollbar-track { background: #13131a; }
+.pdf-csel-list::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 3px; }
+
+.pdf-csel-option {
+    padding:       12px 14px;
+    cursor:        pointer;
+    color:         #d1d5db;
+    font-size:     0.875rem;
+    font-weight:   500;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition:    background 0.12s ease;
+    white-space:   nowrap;
+    overflow:      hidden;
+    text-overflow: ellipsis;
+    min-height:    44px;
+    display:       flex;
+    align-items:   center;
+}
+.pdf-csel-option:last-child { border-bottom: none; }
+.pdf-csel-option:hover      { background: rgba(239,68,68,0.1); color: #fca5a5; }
+.pdf-csel-option.selected   { background: rgba(239,68,68,0.15); color: #fca5a5; font-weight: 700; }
+
+.pdf-csel-option-default {
+    color:         #6b7280 !important;
+    font-style:    italic;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+    background:    rgba(255,255,255,0.02) !important;
+}
+.pdf-csel-option-default:hover { background: rgba(255,255,255,0.04) !important; color: #9ca3af !important; }
+
+.pdf-csel-empty {
+    padding:        16px 14px;
+    color:          #4b5563;
+    font-size:      0.85rem;
+    text-align:     center;
+    display:        flex;
+    align-items:    center;
+    justify-content: center;
+    gap:            8px;
+}
+
+
+/* ── ANIMAÇÕES ────────────────────────────────────────────────────────────── */
+@keyframes pdfModalSlideIn {
+    from { opacity: 0; transform: translateY(-40px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+
+/* ── RESPONSIVIDADE ───────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+    .pdf-export-body           { grid-template-columns: 1fr; height: auto; overflow: visible; }
+    .pdf-export-left           { height: auto; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 18px 16px; }
+    .pdf-export-right          { height: auto; padding: 18px 16px 16px; }
+    .pdf-preview-box           { min-height: 240px; }
+    .pdf-type-grid             { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .pdf-preview-stats         { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .pdf-export-modal-overlay  { padding: 10px 8px; }
+    .pdf-export-header         { padding: 16px 18px; }
+    .pdf-export-header-icon    { width: 42px; height: 42px; font-size: 1.2rem; }
+    .pdf-export-header h3      { font-size: 1.1rem; }
+    .pdf-type-grid             { grid-template-columns: 1fr; }
+    .pdf-preview-stats         { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 480px) {
+    .pdf-export-modal-content  { border-radius: 14px; }
+    .pdf-generate-btn          { font-size: 0.88rem; padding: 12px 16px; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TEMAS DO CALENDÁRIO CUSTOMIZADO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── VERDE — Adicionar / Editar ── */
+.custom-datetime-picker.theme-green { border-color: rgba(16,185,129,0.4) !important; box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 1px rgba(16,185,129,0.6) !important; }
+.custom-datetime-picker.theme-green .datetime-header                  { background: linear-gradient(135deg, #10b981, #059669) !important; }
+.custom-datetime-picker.theme-green .calendar-nav-arrow               { background: rgba(16,185,129,0.14) !important; border-color: rgba(16,185,129,0.28) !important; color: #34d399 !important; }
+.custom-datetime-picker.theme-green .calendar-nav-arrow:hover         { background: rgba(16,185,129,0.28) !important; }
+.custom-datetime-picker.theme-green .year-pick-btn                    { background: rgba(16,185,129,0.2) !important; border-color: rgba(16,185,129,0.42) !important; color: #6ee7b7 !important; }
+.custom-datetime-picker.theme-green .year-pick-btn:hover              { background: rgba(16,185,129,0.36) !important; border-color: rgba(16,185,129,0.68) !important; color: #a7f3d0 !important; }
+.custom-datetime-picker.theme-green .calendar-day:hover:not(:disabled){ background: rgba(16,185,129,0.16) !important; border-color: rgba(16,185,129,0.32) !important; }
+.custom-datetime-picker.theme-green .calendar-day.today               { color: #34d399 !important; }
+.custom-datetime-picker.theme-green .calendar-day.today::after        { background: #34d399 !important; }
+.custom-datetime-picker.theme-green .calendar-day.selected            { background: linear-gradient(135deg, rgba(16,185,129,0.55), rgba(5,150,105,0.55)) !important; border-color: rgba(16,185,129,0.65) !important; box-shadow: 0 3px 10px rgba(16,185,129,0.25) !important; }
+.custom-datetime-picker.theme-green .calendar-day.selected:hover      { background: linear-gradient(135deg, rgba(4,120,87,0.75), rgba(2,90,60,0.75)) !important; border-color: rgba(4,120,87,0.89) !important; box-shadow: 0 4px 12px rgba(4,120,87,0.33) !important; }
+.custom-datetime-picker.theme-green .datetime-btn-ok                  { background: linear-gradient(135deg, #10b981, #059669) !important; border-color: #10b981 !important; box-shadow: 0 3px 10px rgba(16,185,129,0.3) !important; }
+.custom-datetime-picker.theme-green .datetime-btn-ok:hover            { box-shadow: 0 5px 16px rgba(16,185,129,0.5) !important; }
+.custom-datetime-picker.theme-green .datetime-cal-col::-webkit-scrollbar-thumb { background: #059669 !important; }
+.custom-datetime-picker.theme-green .time-panel-box                   { border-color: rgba(16,185,129,0.22) !important; background: rgba(16,185,129,0.04) !important; }
+.custom-datetime-picker.theme-green .time-big-label,
+.custom-datetime-picker.theme-green .time-big-unit-label              { color: rgba(16,185,129,0.7) !important; }
+.custom-datetime-picker.theme-green .time-big-sep                     { color: #10b981 !important; }
+.custom-datetime-picker.theme-green .time-input                       { border-color: rgba(16,185,129,0.35) !important; }
+.custom-datetime-picker.theme-green .time-input:focus                 { border-color: #10b981 !important; box-shadow: 0 0 0 3px rgba(16,185,129,0.2) !important; }
+.custom-datetime-picker.theme-green .set-now-btn                      { background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.15)) !important; border-color: rgba(16,185,129,0.4) !important; color: #6ee7b7 !important; }
+.custom-datetime-picker.theme-green .set-now-btn i                    { color: #34d399 !important; }
+.custom-datetime-picker.theme-green .set-now-btn:hover                { background: linear-gradient(135deg, rgba(16,185,129,0.35), rgba(5,150,105,0.25)) !important; border-color: rgba(16,185,129,0.7) !important; color: #a7f3d0 !important; }
+.custom-datetime-overlay.theme-green .year-picker-modal               { border-color: rgba(16,185,129,0.4) !important; }
+.custom-datetime-overlay.theme-green .year-picker-header              { background: linear-gradient(135deg, #10b981, #059669) !important; }
+.custom-datetime-overlay.theme-green .year-picker-item:hover          { background: rgba(16,185,129,0.2) !important; color: #a7f3d0 !important; }
+.custom-datetime-overlay.theme-green .year-picker-item.selected       { background: linear-gradient(135deg, #10b981, #059669) !important; box-shadow: 0 2px 10px rgba(16,185,129,0.45) !important; }
+.custom-datetime-overlay.theme-green .year-picker-scroll              { scrollbar-color: #059669 #13131a !important; }
+.custom-datetime-overlay.theme-green .year-picker-scroll::-webkit-scrollbar-thumb  { background: linear-gradient(135deg, #10b981, #059669) !important; }
+.custom-datetime-overlay.theme-green .year-picker-scroll::-webkit-scrollbar-track  { background: #13131a !important; }
+
+/* ── CIANO — Filtros ── */
+.custom-datetime-picker.theme-cyan { border-color: rgba(8,145,178,0.4) !important; box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 1px rgba(8,145,178,0.6) !important; }
+.custom-datetime-picker.theme-cyan .datetime-header                   { background: linear-gradient(135deg, #0891b2, #0e7490) !important; }
+.custom-datetime-picker.theme-cyan .calendar-nav-arrow                { background: rgba(8,145,178,0.14) !important; border-color: rgba(8,145,178,0.28) !important; color: #22d3ee !important; }
+.custom-datetime-picker.theme-cyan .calendar-nav-arrow:hover          { background: rgba(8,145,178,0.28) !important; }
+.custom-datetime-picker.theme-cyan .year-pick-btn                     { background: rgba(8,145,178,0.2) !important; border-color: rgba(8,145,178,0.42) !important; color: #67e8f9 !important; }
+.custom-datetime-picker.theme-cyan .year-pick-btn:hover               { background: rgba(8,145,178,0.36) !important; border-color: rgba(8,145,178,0.68) !important; color: #a5f3fc !important; }
+.custom-datetime-picker.theme-cyan .calendar-day:hover:not(:disabled) { background: rgba(8,145,178,0.16) !important; border-color: rgba(8,145,178,0.32) !important; }
+.custom-datetime-picker.theme-cyan .calendar-day.today                { color: #22d3ee !important; }
+.custom-datetime-picker.theme-cyan .calendar-day.today::after         { background: #22d3ee !important; }
+.custom-datetime-picker.theme-cyan .calendar-day.selected             { background: linear-gradient(135deg, rgba(8,145,178,0.55), rgba(14,116,144,0.55)) !important; border-color: rgba(8,145,178,0.65) !important; box-shadow: 0 3px 10px rgba(8,145,178,0.25) !important; }
+.custom-datetime-picker.theme-cyan .calendar-day.selected:hover       { background: linear-gradient(135deg, rgba(6,110,135,0.75), rgba(4,80,100,0.75)) !important; border-color: rgba(6,110,135,0.89) !important; box-shadow: 0 4px 12px rgba(6,110,135,0.33) !important; }
+.custom-datetime-picker.theme-cyan .datetime-btn-ok                   { background: linear-gradient(135deg, #0891b2, #0e7490) !important; border-color: #0891b2 !important; box-shadow: 0 3px 10px rgba(8,145,178,0.3) !important; }
+.custom-datetime-picker.theme-cyan .datetime-btn-ok:hover             { box-shadow: 0 5px 16px rgba(8,145,178,0.5) !important; }
+.custom-datetime-picker.theme-cyan .datetime-cal-col::-webkit-scrollbar-thumb { background: #0e7490 !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-modal                { border-color: rgba(8,145,178,0.4) !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-header               { background: linear-gradient(135deg, #0891b2, #0e7490) !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-item:hover           { background: rgba(8,145,178,0.2) !important; color: #a5f3fc !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-item.selected        { background: linear-gradient(135deg, #0891b2, #0e7490) !important; box-shadow: 0 2px 10px rgba(8,145,178,0.45) !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-scroll               { scrollbar-color: #0e7490 #13131a !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-scroll::-webkit-scrollbar-thumb  { background: linear-gradient(135deg, #0891b2, #0e7490) !important; }
+.custom-datetime-overlay.theme-cyan .year-picker-scroll::-webkit-scrollbar-track  { background: #13131a !important; }
+
+/* ── VERMELHO — PDF ── */
+.custom-datetime-picker.theme-red { border-color: rgba(239,68,68,0.4) !important; box-shadow: 0 24px 64px rgba(0,0,0,0.85), 0 0 1px rgba(239,68,68,0.6) !important; }
+.custom-datetime-picker.theme-red .datetime-header                    { background: linear-gradient(135deg, #ef4444, #dc2626) !important; }
+.custom-datetime-picker.theme-red .calendar-nav-arrow                 { background: rgba(239,68,68,0.14) !important; border-color: rgba(239,68,68,0.28) !important; color: #f87171 !important; }
+.custom-datetime-picker.theme-red .calendar-nav-arrow:hover           { background: rgba(239,68,68,0.28) !important; }
+.custom-datetime-picker.theme-red .year-pick-btn                      { background: rgba(239,68,68,0.2) !important; border-color: rgba(239,68,68,0.42) !important; color: #fca5a5 !important; }
+.custom-datetime-picker.theme-red .year-pick-btn:hover                { background: rgba(239,68,68,0.36) !important; border-color: rgba(239,68,68,0.68) !important; color: #fecaca !important; }
+.custom-datetime-picker.theme-red .calendar-day:hover:not(:disabled)  { background: rgba(239,68,68,0.16) !important; border-color: rgba(239,68,68,0.32) !important; }
+.custom-datetime-picker.theme-red .calendar-day.today                 { color: #f87171 !important; }
+.custom-datetime-picker.theme-red .calendar-day.today::after          { background: #f87171 !important; }
+.custom-datetime-picker.theme-red .calendar-day.selected              { background: linear-gradient(135deg, rgba(239,68,68,0.55), rgba(220,38,38,0.55)) !important; border-color: rgba(239,68,68,0.65) !important; box-shadow: 0 3px 10px rgba(239,68,68,0.25) !important; }
+.custom-datetime-picker.theme-red .calendar-day.selected:hover        { background: linear-gradient(135deg, rgba(185,28,28,0.75), rgba(153,27,27,0.75)) !important; border-color: rgba(185,28,28,0.89) !important; box-shadow: 0 4px 12px rgba(185,28,28,0.33) !important; }
+.custom-datetime-picker.theme-red .datetime-btn-ok                    { background: linear-gradient(135deg, #ef4444, #dc2626) !important; border-color: #ef4444 !important; box-shadow: 0 3px 10px rgba(239,68,68,0.3) !important; }
+.custom-datetime-picker.theme-red .datetime-btn-ok:hover              { box-shadow: 0 5px 16px rgba(239,68,68,0.5) !important; }
+.custom-datetime-picker.theme-red .datetime-cal-col::-webkit-scrollbar-thumb { background: #dc2626 !important; }
+.custom-datetime-overlay.theme-red .year-picker-modal                 { border-color: rgba(239,68,68,0.4) !important; }
+.custom-datetime-overlay.theme-red .year-picker-header                { background: linear-gradient(135deg, #ef4444, #dc2626) !important; }
+.custom-datetime-overlay.theme-red .year-picker-item:hover            { background: rgba(239,68,68,0.2) !important; color: #fecaca !important; }
+.custom-datetime-overlay.theme-red .year-picker-item.selected         { background: linear-gradient(135deg, #ef4444, #dc2626) !important; box-shadow: 0 2px 10px rgba(239,68,68,0.45) !important; }
+.custom-datetime-overlay.theme-red .year-picker-scroll                { scrollbar-color: #dc2626 #13131a !important; }
+.custom-datetime-overlay.theme-red .year-picker-scroll::-webkit-scrollbar-thumb  { background: linear-gradient(135deg, #ef4444, #dc2626) !important; }
+.custom-datetime-overlay.theme-red .year-picker-scroll::-webkit-scrollbar-track  { background: #13131a !important; }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL DE AÇÃO PDF
+   ════════════════════════════════════════════════════════════════════════════ */
+.pdf-action-modal-overlay {
+    display:         none;
+    position:        fixed;
+    inset:           0;
+    background:      rgba(0,0,0,0.88);
+    backdrop-filter: blur(12px);
+    z-index:         20000;
+    align-items:     center;
+    justify-content: center;
+    padding:         16px;
+}
+.pdf-action-modal-overlay.pdf-action-modal-show { display: flex; animation: pdfActionFadeIn 0.25s ease; }
+@keyframes pdfActionFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.pdf-action-modal {
+    background:    #1e1e2a;
+    border:        1px solid rgba(239,68,68,0.2);
+    border-radius: 20px;
+    max-width:     440px;
+    width:         100%;
+    box-shadow:    0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04), 0 0 60px rgba(239,68,68,0.06);
+    overflow:      hidden;
+    animation:     pdfActionSlideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    position:      relative;
+}
+.pdf-action-modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(239,68,68,0.7), transparent); }
+@keyframes pdfActionSlideUp { from { transform: translateY(28px) scale(0.97); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+.pdf-action-modal-header { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 28px 28px 24px; text-align: center; position: relative; }
+.pdf-action-modal-header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); }
+
+.pdf-action-x-btn { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,0.15) !important; border-radius: 10px !important; z-index: 1; }
+.pdf-action-x-btn:hover { background: rgba(255,255,255,0.28) !important; }
+
+.pdf-action-modal-icon { width: 56px; height: 56px; background: rgba(255,255,255,0.18); backdrop-filter: blur(4px); border-radius: 15px; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; font-size: 24px; color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2); }
+.pdf-action-modal-title { font-size: 1.25rem; font-weight: 800; color: #fff; margin: 0 0 6px; letter-spacing: -0.3px; }
+.pdf-action-modal-sub   { font-size: 0.75rem; color: rgba(255,255,255,0.65); margin: 0; word-break: break-all; font-weight: 500; font-family: 'Courier New', monospace; background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 6px; display: inline-block; }
+
+.pdf-action-modal-body  { padding: 24px 24px 20px; }
+.pdf-action-buttons     { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+
+.pdf-action-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 18px 14px; border: 1.5px solid transparent; border-radius: 14px; cursor: pointer; font-family: inherit; text-align: center; position: relative; overflow: hidden; transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease; }
+.pdf-action-btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent); transition: left 0.5s ease; }
+.pdf-action-btn:hover::before { left: 100%; }
+.pdf-action-btn:hover         { transform: translateY(-3px); filter: brightness(1.08); }
+.pdf-action-btn:active        { transform: translateY(-1px); filter: brightness(0.96); }
+.pdf-action-btn i             { font-size: 1.6rem; display: block; }
+.pdf-action-btn span          { font-size: 0.95rem; font-weight: 800; display: block; letter-spacing: 0.2px; }
+.pdf-action-btn small         { font-size: 0.72rem; opacity: 0.72; display: block; font-weight: 500; }
+
+.pdf-action-btn-view     { background: linear-gradient(135deg, #7c3aed, #6d28d9); border-color: rgba(139,92,246,0.4); color: #fff; box-shadow: 0 6px 20px rgba(109,40,217,0.4), inset 0 1px 0 rgba(255,255,255,0.12); }
+.pdf-action-btn-view:hover     { box-shadow: 0 10px 30px rgba(109,40,217,0.55); }
+.pdf-action-btn-download { background: linear-gradient(135deg, #059669, #047857); border-color: rgba(16,185,129,0.4); color: #fff; box-shadow: 0 6px 20px rgba(5,150,105,0.4), inset 0 1px 0 rgba(255,255,255,0.12); }
+.pdf-action-btn-download:hover { box-shadow: 0 10px 30px rgba(5,150,105,0.55); }
+
+.pdf-action-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 0 0 14px; }
+
+.pdf-action-close { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; background: rgba(255,255,255,0.04); border: 1.5px solid rgba(255,255,255,0.08); color: #6b7280; font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 10px 16px; border-radius: 10px; font-family: inherit; letter-spacing: 0.3px; text-transform: uppercase; transition: all 0.2s ease; }
+.pdf-action-close i { font-size: 0.8rem; }
+.pdf-action-close:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #f87171; transform: translateY(-1px); }
+
+@media (max-width: 480px) {
+    .pdf-action-modal        { max-width: 98%; border-radius: 16px; }
+    .pdf-action-modal-header { padding: 22px 20px 18px; }
+    .pdf-action-modal-body   { padding: 18px 16px 16px; }
+    .pdf-action-buttons      { grid-template-columns: 1fr; gap: 10px; }
+    .pdf-action-btn          { padding: 16px 12px; flex-direction: row; gap: 12px; }
+    .pdf-action-btn i        { font-size: 1.3rem; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HOLD-TO-CLOSE — Círculo de progresso (mesmo estilo do main/style-parte1.css)
+   Funciona nos dois modais PDF: pdfExportModal e pdfActionModal
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.modal-hold-progress {
+    position:       fixed;
+    transform:      translate(-50%, -50%);
+    z-index:        99999;
+    pointer-events: none;
+    animation:      holdProgressFadeIn 0.2s ease-out;
+}
+
+.hold-progress-circle {
+    position: relative;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+}
+
+.progress-ring {
+    position: absolute; top: 0; left: 0;
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    stroke:         white;
+    stroke-width:   3;
+    fill:           transparent;
+    stroke-linecap: round;
+    filter:         drop-shadow(0 0 4px rgba(255,255,255,0.5));
+}
+
+.hold-progress-icon {
+    width:           30px; height: 30px;
+    background:      rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px);
+    border-radius:   50%;
+    display:         flex; align-items: center; justify-content: center;
+    z-index:         1;
+}
+.hold-progress-icon i {
+    color:     white;
+    font-size: 16px;
+    animation: holdIconPulse 1s ease-in-out infinite;
+}
+
+.hold-progress-text {
+    margin-top:  10px;
+    color:       white;
+    font-size:   12px;
+    font-weight: 500;
+    text-align:  center;
+    white-space: nowrap;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    animation:   holdTextBlink 1.5s ease-in-out infinite;
+}
+
+@keyframes holdProgressFadeIn {
+    from { opacity: 0; transform: translate(-50%,-50%) scale(0.8); }
+    to   { opacity: 1; transform: translate(-50%,-50%) scale(1);   }
+}
+@keyframes holdIconPulse  { 0%,100% { transform: scale(1);   } 50% { transform: scale(1.1); } }
+@keyframes holdTextBlink  { 0%,100% { opacity: 1; }           50% { opacity: 0.6;            } }
