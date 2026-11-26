@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#070b12">
-    <title>PrintPro — gestão de serviços</title>
+    <title>Impressões — gestão de serviços</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 
     <link rel="stylesheet" href="css/tokens.css">
@@ -27,9 +27,8 @@
     <!-- ============ Navegação lateral (desktop) / barra inferior (celular) ============ -->
     <aside class="sidebar">
         <div class="brand">
-            <span class="brand-mark" data-icon="printer" data-icon-size="46" aria-hidden="true"></span>
             <div class="brand-text">
-                <strong>PrintPro</strong>
+                <strong>IMPRESSÕES</strong>
                 <span>Gestão de Serviços</span>
             </div>
         </div>
@@ -38,13 +37,23 @@
             <a class="nav-item" href="#/impressoes" data-view="impressoes" data-icon="printer"><span>Impressões</span></a>
             <a class="nav-item" href="#/clientes"   data-view="clientes"   data-icon="users"><span>Clientes</span></a>
             <a class="nav-item" href="#/ajustes"    data-view="ajustes"    data-icon="tag"><span>Preços e dados</span></a>
+            <div class="nav-sep" role="separator"></div>
             <button type="button" class="nav-item" id="openPdfBtn" data-icon="file-text"><span>Relatórios em PDF</span></button>
             <button type="button" class="nav-item" id="openPixBtn" data-icon="qr-code"><span>QR Code Pix</span></button>
         </nav>
 
         <div class="sidebar-foot">
-            <div class="conn" id="connStatus" role="status">
-                <span class="conn-dot"></span><span class="conn-text">Conectando…</span>
+            <div class="conn-card" aria-label="Conexões">
+                <div class="conn" id="connStatus" data-kind="db" role="status">
+                    <span class="conn-ico" data-icon="database" data-icon-size="18" aria-hidden="true"></span>
+                    <span class="conn-body"><strong>Firestore</strong><span class="conn-text">Conectando…</span></span>
+                    <span class="conn-dot" aria-hidden="true"></span>
+                </div>
+                <div class="conn" id="driveStatus" data-kind="drive" role="status">
+                    <span class="conn-ico" data-icon="cloud-upload" data-icon-size="18" aria-hidden="true"></span>
+                    <span class="conn-body"><strong>Google Drive</strong><span class="conn-text">Verificando…</span></span>
+                    <span class="conn-dot" aria-hidden="true"></span>
+                </div>
             </div>
             <div class="colorbar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
         </div>

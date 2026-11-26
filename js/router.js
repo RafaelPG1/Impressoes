@@ -28,7 +28,7 @@ function render() {
     document.getElementById('viewTitle').textContent = v.title;
     document.getElementById('viewSub').textContent = v.sub;
     document.getElementById('viewIcon').innerHTML = icon(v.icon, 44);
-    document.title = `${v.title} — PrintPro`;
+    document.title = `${v.title} — Impressões`;
     window.scrollTo(0, 0);
 }
 

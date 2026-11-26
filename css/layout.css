@@ -40,7 +40,7 @@
     font-family: var(--font-ui);
     font-size: var(--fs-lg);
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.08em;   /* caixa alta pede espaçamento positivo */
 }
 .brand-text span { font-size: var(--fs-xs); color: var(--on-ink-2); }
 
@@ -81,13 +81,34 @@
     position: relative;
 }
 
-.conn { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-xs); color: var(--on-ink-2); }
-.conn-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--yellow); }
+/* Status das conexões: um cartão com uma linha por serviço (ícone próprio + estado) */
+.conn-card {
+    display: flex;
+    flex-direction: column;
+    background: rgb(255 255 255 / 0.04);
+    border: 1px solid rgb(255 255 255 / 0.08);
+    border-radius: var(--r-lg);
+}
+.conn { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-2); }
+.conn + .conn { border-top: 1px solid rgb(255 255 255 / 0.08); }
+.conn-ico {
+    display: grid; place-items: center; flex: none;
+    width: 2.125rem; height: 2.125rem; border-radius: var(--r-md);
+}
+.conn[data-kind='db']    .conn-ico { background: rgb(242 183 5 / 0.14);  color: #f2c744; }
+.conn[data-kind='drive'] .conn-ico { background: rgb(92 195 245 / 0.14); color: #5cc3f5; }
+.conn-body { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.conn-body strong { font-size: var(--fs-sm); font-weight: 600; color: #fff; white-space: nowrap; }
+.conn-text { font-size: var(--fs-xs); color: var(--on-ink-2); }
+.conn[data-state='ok']    .conn-text { color: #3ccf9a; }
+.conn[data-state='error'] .conn-text { color: #ff7aa6; }
+.nav-sep { height: 1px; margin: var(--s-2) var(--s-3); background: rgb(255 255 255 / 0.1); }
+.conn-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--yellow); }
 .conn[data-state='ok'] .conn-dot { background: #3ccf9a; box-shadow: 0 0 8px #3ccf9a; }
 .conn[data-state='error'] .conn-dot { background: #ff5c93; }
 
 /* Régua de cores (controle de impressão): C M Y K */
-.colorbar { display: flex; gap: 3px; }
+.colorbar { display: flex; gap: 3px; justify-content: center; }
 .colorbar i { display: block; width: 1.25rem; height: 0.375rem; border-radius: 1px; }
 .colorbar i:nth-child(1) { background: #00a3e0; }
 .colorbar i:nth-child(2) { background: #e6007e; }

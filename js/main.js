@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { store } from './services/firestore.js';
+import { SHEETS_URL } from './config.js';
 import { refresh } from './actions.js';
 import { notify } from './ui/feedback.js';
 import { hydrateIcons } from './ui/icons-hydrate.js';
@@ -20,8 +21,8 @@ import { confirmClearAll } from './actions.js';
 
 const $ = (id) => document.getElementById(id);
 
-function setConnection(state, text) {
-    const el = $('connStatus');
+function setConnection(state, text, id = 'connStatus') {
+    const el = $(id);
     el.dataset.state = state;
     el.querySelector('.conn-text').textContent = text;
 }
@@ -30,7 +31,21 @@ function showToday() {
     $('todayText').textContent = new Date().toLocaleDateString('pt-BR');
 }
 
+/** Drive = backup no Google Sheets. GET no Apps Script: responde JSON quando o deploy está ativo. */
+async function checkDrive() {
+    try {
+        const resp = await fetch(SHEETS_URL, { signal: AbortSignal.timeout(8000) });
+        await resp.json();
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        setConnection('ok', 'Conectado', 'driveStatus');
+    } catch (err) {
+        console.warn('[DRIVE] sem conexão:', err.message);
+        setConnection('error', 'Sem conexão', 'driveStatus');
+    }
+}
+
 async function start() {
+    checkDrive();
     hydrateIcons();
     showToday();
 
@@ -46,7 +61,7 @@ async function start() {
     $('clearAllBtn').addEventListener('click', confirmClearAll);
 
     if (!store.isConfigured) {
-        setConnection('error', 'Banco não configurado');
+        setConnection('error', 'Não configurado');
         notify.error('Firebase não configurado. Veja js/config.js.', null, 8000);
         initForm();
         return;
@@ -56,10 +71,10 @@ async function start() {
     try {
         await loadPrices();
         await refresh();
-        setConnection('ok', 'Conectado ao Firestore');
+        setConnection('ok', 'Conectado');
     } catch (err) {
         console.error('[APP] erro ao carregar:', err);
-        setConnection('error', 'Sem conexão com o banco');
+        setConnection('error', 'Sem conexão');
         notify.error('Não foi possível carregar os dados do banco.', null, 7000);
     }
 }

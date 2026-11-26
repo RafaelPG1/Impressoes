@@ -276,9 +276,9 @@ select {
 .loader-bar { display: flex; gap: 4px; }
 .loader-bar i { width: 1.5rem; height: 0.5rem; border-radius: 2px; animation: ink-pulse 1s var(--ease-out) infinite; }
 .loader-bar i:nth-child(1) { background: #00a3e0; }
-.loader-bar i:nth-child(2) { background: #e6007e; animation-delay: 0.12s; }
-.loader-bar i:nth-child(3) { background: #ffd500; animation-delay: 0.24s; }
-.loader-bar i:nth-child(4) { background: var(--ink); animation-delay: 0.36s; }
+.loader-bar i:nth-child(2) { background: #e6007e; animation-delay: -0.88s; }
+.loader-bar i:nth-child(3) { background: #ffd500; animation-delay: -0.76s; }
+.loader-bar i:nth-child(4) { background: #f3f5f7; animation-delay: -0.64s; }
 
 @keyframes ink-pulse { 0%, 100% { transform: scaleY(0.5); opacity: 0.45; } 40% { transform: scaleY(1.6); opacity: 1; } }
 @keyframes fade-in { from { opacity: 0; } }
@@ -311,3 +311,14 @@ select {
 
 /* Botão de fechar dos diálogos */
 .dlg-head .icon-btn { border: 1px solid var(--line-2); }
+
+/* Com "reduzir movimento" ligado no Windows, base.css zera as animações e o carregando parava.
+   Aqui ele continua vivo, só que pulsando a opacidade (sem escala nem deslocamento). */
+@keyframes ink-fade { 0%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .loader-bar i { animation: ink-fade 1s ease-in-out infinite !important; }
+    .loader-bar i:nth-child(2) { animation-delay: -0.88s !important; }
+    .loader-bar i:nth-child(3) { animation-delay: -0.76s !important; }
+    .loader-bar i:nth-child(4) { animation-delay: -0.64s !important; }
+    .spin { animation: spin 0.9s linear infinite !important; }
+}
