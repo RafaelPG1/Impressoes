@@ -1,0 +1,151 @@
+/* ==========================================================================
+   dialogs.css — <dialog> nativo (foco preso, ESC, camada superior)
+   ========================================================================== */
+
+.dlg {
+    width: min(34rem, calc(100vw - 2rem));
+    max-height: min(48rem, calc(100dvh - 2rem));
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow-3);
+    overflow: hidden;
+}
+.dlg[open] { display: flex; animation: dlg-in var(--dur-2) var(--ease-out); }
+.dlg::backdrop { background: rgb(0 0 0 / 0.65); animation: fade-in var(--dur-2) var(--ease-out); }
+.dlg-sm   { width: min(26rem, calc(100vw - 2rem)); }
+.dlg-wide { width: min(62rem, calc(100vw - 2rem)); }
+
+@keyframes dlg-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+
+.dlg-form { display: flex; flex-direction: column; width: 100%; min-height: 0; }
+
+.dlg-head h2 { font-family: var(--font-ui); font-size: var(--fs-lg); }
+.dlg-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-3);
+    padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
+    border-bottom: 1px solid var(--line);
+}
+.dlg-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-4);
+    padding: var(--s-5);
+    overflow-y: auto;
+    min-height: 0;
+}
+.dlg-foot {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    padding: var(--s-3) var(--s-5);
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+}
+
+/* Diálogo de aviso com resumo de resultado */
+.notice-list { display: flex; flex-direction: column; margin: 0; }
+.notice-list > div { display: flex; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0; border-bottom: 1px solid var(--line); }
+.notice-list > div:last-child { border-bottom: 0; }
+.notice-list dt { color: var(--text-2); }
+.notice-list dd { margin: 0; font-weight: 650; }
+.notice-list dd.is-zero { color: var(--text-3); font-weight: 500; }
+.notice-big { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.02em; }
+
+/* Pix */
+.pix-body { align-items: center; text-align: center; }
+.pix-frame {
+    display: grid;
+    place-items: center;
+    width: min(16rem, 100%);
+    aspect-ratio: 1;
+    padding: var(--s-3);
+    background: #fff;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+}
+.pix-frame img { width: 100%; height: 100%; object-fit: contain; }
+.pix-empty { display: flex; flex-direction: column; gap: var(--s-1); color: var(--text-3); font-size: var(--fs-sm); }
+.pix-empty strong { color: var(--text-2); }
+.pix-status { min-height: 1.25em; }
+.pix-status[data-type='error'] { color: var(--magenta); }
+.pix-status[data-type='success'] { color: var(--green); }
+.pix-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2); }
+label.btn { cursor: pointer; }
+
+/* PDF */
+.pdf-layout { display: grid; grid-template-columns: 19rem minmax(0, 1fr); gap: 0; padding: 0; overflow: hidden; }
+.pdf-types { display: flex; flex-direction: column; gap: var(--s-3); border: 0; border-right: 1px solid var(--line); padding: var(--s-5); margin: 0; overflow-y: auto; }
+.pdf-type {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-md);
+    background: var(--field);
+    cursor: pointer;
+    transition: border-color var(--dur-1), background var(--dur-1);
+}
+.pdf-type:hover { border-color: var(--text-3); }
+.pdf-type input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.pdf-type-ico { display: grid; place-items: center; flex: none; width: 2rem; color: var(--text-2); }
+.pdf-type-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pdf-type strong { font-size: var(--fs-sm); }
+.pdf-type small { color: var(--text-3); font-size: var(--fs-xs); }
+.pdf-check { display: none; place-items: center; flex: none; width: 1.5rem; height: 1.5rem; margin-left: auto; border-radius: 50%; background: var(--cyan); color: #fff; }
+.pdf-type:has(input:checked) { border-color: var(--cyan-text); background: var(--cyan-soft); box-shadow: var(--glow); }
+.pdf-type:has(input:checked) .pdf-type-ico { color: var(--cyan-text); }
+.pdf-type:has(input:checked) .pdf-check { display: grid; }
+.pdf-type:has(input:focus-visible) { outline: 2px solid var(--cyan-text); outline-offset: 2px; }
+.pdf-config { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; padding: var(--s-5); overflow-y: auto; }
+.pdf-head { display: flex; align-items: center; gap: var(--s-3); }
+.pdf-head h3 { font-family: var(--font-ui); font-size: var(--fs-lg); font-weight: 650; }
+.pdf-head .head-ico { color: var(--cyan-text); }
+.pdf-fields { display: flex; flex-direction: column; gap: var(--s-3); }
+.pdf-fields:empty { display: none; }
+.pdf-fields .field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pdf-preview { display: flex; flex-direction: column; gap: var(--s-4); min-height: 8rem; }
+.pdf-preview-title { display: none; }
+.pdf-preview-note { color: var(--text-2); font-size: var(--fs-sm); padding: var(--s-4); border: 1px dashed var(--line-2); border-radius: var(--r-md); }
+.pdf-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-3); margin: 0; }
+.pdf-stats > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--s-3); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); text-align: center; }
+.pdf-stats .icon { color: var(--cyan-text); margin-bottom: var(--s-1); }
+.pdf-stats dd { order: 1; margin: 0; font-weight: 700; font-size: var(--fs-lg); overflow-wrap: anywhere; line-height: 1.2; }
+.pdf-stats dt { order: 2; font-size: var(--fs-sm); color: var(--text-2); }
+.pdf-fin { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; }
+.pdf-fin h4 { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-4); font-size: var(--fs-md); font-weight: 600; font-family: var(--font-ui); }
+.pdf-fin h4 .icon { color: var(--cyan-text); }
+.pdf-fin-body { margin: 0; display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); background: var(--surface); }
+.pdf-fin-body > div { padding: var(--s-3) var(--s-4); }
+.pdf-fin-body > div + div { border-left: 1px solid var(--line); }
+.pdf-fin-body dt { font-size: var(--fs-sm); color: var(--text-2); }
+.pdf-fin-body dd { margin: 0; font-size: var(--fs-xl); font-weight: 700; }
+.pdf-fin-body .is-open { color: var(--magenta); }
+.pdf-rows { list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); max-height: 11rem; overflow-y: auto; border-top: 1px solid var(--line); }
+.pdf-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--s-3); padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); }
+.pdf-rows li:last-child { border-bottom: 0; }
+.pdf-more { padding: var(--s-2) var(--s-4); color: var(--text-3); font-size: var(--fs-xs); }
+.pdf-result { align-items: center; text-align: center; padding: var(--s-6) var(--s-5); }
+.pdf-result-icon { width: 3rem; height: 4rem; background: url('../assets/pdf-icon.svg') center / contain no-repeat; }
+.pdf-result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-2); }
+@media (max-width: 720px) {
+    .dlg { max-height: calc(100dvh - 1rem); width: calc(100vw - 1rem); }
+    .dlg-head { padding-left: var(--s-4); }
+    .dlg-body { padding: var(--s-4); }
+    .dlg-foot { padding: var(--s-3) var(--s-4); }
+    .dlg-foot .btn { flex: 1; }
+    .dlg-body.pdf-layout { grid-template-columns: minmax(0, 1fr); overflow-y: auto; padding: 0; }
+    .pdf-types { border-right: 0; border-bottom: 1px solid var(--line); padding: var(--s-4); overflow: visible; }
+    .pdf-config { padding: var(--s-4); overflow: visible; }
+    .pdf-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dlg .field-row { grid-template-columns: minmax(0, 1fr); }
+    #editAutoFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

@@ -1,0 +1,86 @@
+/* ==========================================================================
+   base.css — reset, elementos nativos, utilitários
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
+
+body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: var(--fs-base);
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p { margin: 0; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 650; text-wrap: balance; }
+h1 { font-size: var(--fs-xl); line-height: 1.1; letter-spacing: -0.02em; }
+h2 { font-size: var(--fs-md); line-height: 1.25; letter-spacing: -0.01em; }
+h3 { font-size: var(--fs-md); line-height: 1.25; letter-spacing: -0.01em; }
+
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+img, svg { display: block; max-width: 100%; }
+table { border-collapse: collapse; width: 100%; }
+a { color: var(--cyan-text); }
+
+[hidden] { display: none !important; }
+
+/* Seleção e caret na paleta */
+::selection { background: var(--cyan); color: #fff; }
+input, textarea, select { caret-color: var(--cyan-text); accent-color: var(--cyan-text); }
+
+/* Barras de rolagem */
+* { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: var(--r-pill); border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); background-clip: content-box; border: 2px solid transparent; }
+
+/* Foco visível, sempre */
+:focus { outline: none; }
+:focus-visible {
+    outline: 2px solid var(--cyan-text);
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+}
+
+/* Sem setas nos campos numéricos */
+input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.icon { flex: none; }
+
+.sr-only {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.skip-link {
+    position: fixed; left: var(--s-3); top: -4rem; z-index: 1000;
+    background: var(--ink); color: var(--on-ink); padding: var(--s-2) var(--s-4);
+    border-radius: var(--r-md); text-decoration: none;
+    transition: top var(--dur-1) var(--ease-out);
+}
+.skip-link:focus { top: var(--s-3); }
+
+body.is-locked { overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Sem a seta do datalist: as sugestões aparecem ao digitar */
+input[list]::-webkit-calendar-picker-indicator { display: none !important; }

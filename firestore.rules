@@ -1,0 +1,13 @@
+rules_version = '2';
+// Regras de referência. Cole no console do Firebase (Firestore > Regras).
+// ATENÇÃO: o app não tem login. Estas regras limitam as coleções usadas,
+// mas qualquer pessoa com a chave do site ainda lê e grava.
+// Para proteger de verdade, ative Firebase Auth e troque "if true" por
+// "if request.auth != null" (ver README, seção Segurança).
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{col}/{doc} {
+      allow read, write: if col in ['impressoes','clientes','pagamentos','pagamentosImpressoes','precos','config'];
+    }
+  }
+}

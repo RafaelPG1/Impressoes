@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#070b12">
+    <title>PrintPro — gestão de serviços</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+    <link rel="stylesheet" href="css/tokens.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/views.css">
+    <link rel="stylesheet" href="css/dialogs.css">
+
+    <!-- Bibliotecas de PDF (locais, sem CDN) -->
+    <script src="vendor/jspdf.umd.min.js" defer></script>
+    <script src="vendor/jspdf.plugin.autotable.min.js" defer></script>
+    <script type="module" src="js/main.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Ir para o conteúdo</a>
+
+<div class="app">
+
+    <!-- ============ Navegação lateral (desktop) / barra inferior (celular) ============ -->
+    <aside class="sidebar">
+        <div class="brand">
+            <span class="brand-mark" data-icon="printer" data-icon-size="46" aria-hidden="true"></span>
+            <div class="brand-text">
+                <strong>PrintPro</strong>
+                <span>Gestão de Serviços</span>
+            </div>
+        </div>
+
+        <nav class="nav" aria-label="Seções">
+            <a class="nav-item" href="#/impressoes" data-view="impressoes" data-icon="printer"><span>Impressões</span></a>
+            <a class="nav-item" href="#/clientes"   data-view="clientes"   data-icon="users"><span>Clientes</span></a>
+            <a class="nav-item" href="#/ajustes"    data-view="ajustes"    data-icon="tag"><span>Preços e dados</span></a>
+            <button type="button" class="nav-item" id="openPdfBtn" data-icon="file-text"><span>Relatórios em PDF</span></button>
+            <button type="button" class="nav-item" id="openPixBtn" data-icon="qr-code"><span>QR Code Pix</span></button>
+        </nav>
+
+        <div class="sidebar-foot">
+            <div class="conn" id="connStatus" role="status">
+                <span class="conn-dot"></span><span class="conn-text">Conectando…</span>
+            </div>
+            <div class="colorbar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        </div>
+    </aside>
+
+    <div class="content">
+        <header class="topbar">
+            <span class="page-icon" id="viewIcon" aria-hidden="true"></span>
+            <div class="page-title">
+                <h1 id="viewTitle">Impressões</h1>
+                <p id="viewSub"></p>
+            </div>
+            <div class="topbar-tools">
+                <button type="button" class="icon-btn mobile-only" id="openPdfBtnMobile" data-icon="file-text" aria-label="Relatórios em PDF"></button>
+                <button type="button" class="icon-btn mobile-only" id="openPixBtnMobile" data-icon="qr-code" aria-label="QR Code Pix"></button>
+                <time class="today" id="today"><span data-icon="calendar"></span><span id="todayText"></span></time>
+                <span class="avatar" data-icon="user" data-icon-size="22" aria-hidden="true"></span>
+            </div>
+        </header>
+
+        <main id="main" tabindex="-1">
+
+            <!-- ======================= IMPRESSÕES ======================= -->
+            <section class="view" id="view-impressoes" aria-labelledby="viewTitle">
+
+                <dl class="kpis" id="kpis">
+                    <div class="kpi " data-tone="blue"><span class="kpi-ico" data-icon="file-text" data-icon-size="26"></span><div class="kpi-body"><dt>Total registrado</dt><dd id="kpiTotal">R$ 0,00</dd></div><svg class="spark" id="sparkTotal" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+                    <div class="kpi " data-tone="green"><span class="kpi-ico" data-icon="circle-check" data-icon-size="26"></span><div class="kpi-body"><dt>Recebido</dt><dd id="kpiPago">R$ 0,00</dd></div><svg class="spark" id="sparkPago" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+                    <div class="kpi kpi-open" data-tone="violet"><span class="kpi-ico" data-icon="hourglass" data-icon-size="26"></span><div class="kpi-body"><dt>Em aberto</dt><dd id="kpiAberto">R$ 0,00</dd></div><svg class="spark" id="sparkAberto" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+                    <div class="kpi " data-tone="gray"><span class="kpi-ico" data-icon="credit-card" data-icon-size="26"></span><div class="kpi-body"><dt>Impressões sem pagamento</dt><dd id="kpiPendentes">0</dd></div><svg class="spark" id="sparkPendentes" viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+                </dl>
+
+                <div class="work">
+                    <!-- Formulário -->
+                    <section class="panel form-panel" aria-labelledby="formTitle">
+                        <header class="panel-head">
+                            <div class="panel-title"><span class="tile" data-icon="plus" data-icon-size="20"></span><h2 id="formTitle">Nova impressão</h2></div>
+                            <button type="button" class="btn btn-link btn-sm" id="clearFormBtn" data-icon="refresh-cw">Limpar</button>
+                        </header>
+
+                        <form id="impressaoForm" novalidate>
+                            <div class="field">
+                                <label for="nomeCliente">Cliente</label>
+                                <div class="input-icon" data-icon="user"><input type="text" id="nomeCliente" autocomplete="off" list="clientesList" placeholder="Nome do cliente" maxlength="80" required></div>
+                                <datalist id="clientesList"></datalist>
+                                <p class="field-error" id="nomeClienteError" role="alert"></p>
+                            </div>
+
+                            <fieldset class="field type-field">
+                                <legend>Tipo de impressão</legend>
+                                <div class="type-grid" id="tipoGrid">
+                                    <label class="type-option"><input type="radio" name="tipoImpressao" value="1"><span class="type-ico" data-icon="file-text" data-icon-size="22"></span><span class="type-text"><span class="type-name">Xerox P&amp;B</span><span class="type-price" data-price="1"></span></span></label>
+                                    <label class="type-option"><input type="radio" name="tipoImpressao" value="2"><span class="type-ico" data-icon="palette" data-icon-size="22"></span><span class="type-text"><span class="type-name">Xerox colorido</span><span class="type-price" data-price="2"></span></span></label>
+                                    <label class="type-option"><input type="radio" name="tipoImpressao" value="3"><span class="type-ico" data-icon="image" data-icon-size="22"></span><span class="type-text"><span class="type-name">Digital P&amp;B</span><span class="type-price" data-price="3"></span></span></label>
+                                    <label class="type-option"><input type="radio" name="tipoImpressao" value="4"><span class="type-ico" data-icon="image" data-icon-size="22"></span><span class="type-text"><span class="type-name">Digital colorido</span><span class="type-price" data-price="4"></span></span></label>
+                                </div>
+                            </fieldset>
+
+                            <div class="field-row">
+                                <div class="field">
+                                    <label for="folhasNormais">Folhas</label>
+                                    <div class="input-icon" data-icon="layers"><input type="number" id="folhasNormais" inputmode="numeric" min="0" step="1" placeholder="0"></div>
+                                </div>
+                                <div class="field">
+                                    <label for="folhasOffset">Folhas offset <small id="offsetPriceLabel"></small></label>
+                                    <div class="input-icon" data-icon="layers"><input type="number" id="folhasOffset" inputmode="numeric" min="0" step="1" placeholder="0"></div>
+                                </div>
+                            </div>
+                            <p class="field-error" id="folhasOffsetError" role="alert"></p>
+
+                            <div class="field-row">
+                                <div class="field">
+                                    <label for="projetoCanva">Projeto Canva</label>
+                                    <div class="input-affix"><span>R$</span><input type="number" id="projetoCanva" inputmode="decimal" min="0" step="0.01" placeholder="0,00"></div>
+                                </div>
+                                <div class="field">
+                                    <label for="trabalho">Trabalho extra</label>
+                                    <div class="input-affix"><span>R$</span><input type="number" id="trabalho" inputmode="decimal" min="0" step="0.01" placeholder="0,00"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-foot">
+                                <div class="total-box" aria-live="polite">
+                                    <span class="total-ico" data-icon="calculator" data-icon-size="26"></span>
+                                    <div class="total-line">
+                                        <span class="total-label">Valor total</span>
+                                        <output class="total-value" id="valorTotal">R$ 0,00</output>
+                                    </div>
+                                    <ul class="breakdown" id="totalBreakdown"></ul>
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" data-icon="plus">Adicionar impressão</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <!-- Registros -->
+                    <section class="panel records-panel" aria-labelledby="recordsTitle">
+                        <header class="panel-head">
+                            <div class="panel-title">
+                                <span class="tile" data-icon="list" data-icon-size="20"></span>
+                                <h2 id="recordsTitle">Registros</h2>
+                                <span class="count" id="recordsCount"></span>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-sm" id="addManualBtn" data-icon="circle-dollar-sign">Valor avulso</button>
+                        </header>
+
+                        <form class="filters" id="filters" role="search" aria-label="Filtrar registros">
+                            <select id="filterCliente" aria-label="Cliente"><option value="">Todos os clientes</option></select>
+                            <select id="filterStatus" aria-label="Status">
+                                <option value="">Todos os status</option>
+                                <option value="pendente">Pendente</option>
+                                <option value="parcial">Parcial</option>
+                                <option value="pago">Pago</option>
+                            </select>
+                            <select id="filterTipo" aria-label="Tipo de impressão">
+                                <option value="">Todos os tipos</option>
+                                <option value="1">Xerox P&amp;B</option>
+                                <option value="2">Xerox colorido</option>
+                                <option value="3">Digital P&amp;B</option>
+                                <option value="4">Digital colorido</option>
+                                <option value="0">Avulso / desconhecido</option>
+                            </select>
+                            <div class="date-range">
+                                <span class="tile tile-sm" data-icon="calendar"></span>
+                                <label class="date-filter"><span>De</span><input type="date" id="filterDataInicio"></label>
+                                <label class="date-filter"><span>Até</span><input type="date" id="filterDataFim"></label>
+                            </div>
+                            <button type="button" class="btn btn-ghost btn-sm" id="filterClearBtn" hidden data-icon="x">Limpar filtros</button>
+                        </form>
+
+                        <div class="table-wrap">
+                            <table class="data-table" id="impressoesTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Cliente</th>
+                                        <th scope="col">Serviço</th>
+                                        <th scope="col" class="col-num">Valores</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="impressoesTableBody"></tbody>
+                            </table>
+                        </div>
+                        <footer class="table-foot">
+                            <span id="pagerInfo"></span>
+                            <nav class="pager" id="pager" aria-label="Paginação" hidden>
+                                <button type="button" class="icon-btn" id="pagePrev" data-icon="chevron-left" aria-label="Página anterior"></button>
+                                <span class="page-now" id="pageNow" aria-current="page">1</span>
+                                <button type="button" class="icon-btn" id="pageNext" data-icon="chevron-right" aria-label="Próxima página"></button>
+                            </nav>
+                        </footer>
+                    </section>
+                </div>
+            </section>
+
+            <!-- ======================= CLIENTES ======================= -->
+            <section class="view" id="view-clientes" aria-labelledby="viewTitle" hidden>
+                <div class="view-actions">
+                    <button type="button" class="btn btn-primary btn-lg" id="showPaymentBtn" data-icon="credit-card">Registrar pagamento</button>
+                    <button type="button" class="btn btn-secondary btn-lg" id="showHistoryBtn" data-icon="history">Histórico de pagamentos</button>
+                </div>
+                <section class="panel">
+                    <div class="table-wrap">
+                        <table class="data-table" id="clientesTable">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Cliente</th>
+                                    <th scope="col" class="col-num">Impressões</th>
+                                    <th scope="col" class="col-num">Folhas</th>
+                                    <th scope="col" class="col-num">Total</th>
+                                    <th scope="col" class="col-num">Pago</th>
+                                    <th scope="col" class="col-num">Em aberto</th>
+                                    <th scope="col">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientesTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- ======================= PREÇOS E DADOS ======================= -->
+            <section class="view" id="view-ajustes" aria-labelledby="viewTitle" hidden>
+                <div class="settings">
+                    <section class="panel prices-panel" aria-labelledby="pricesTitle">
+                        <header class="panel-head">
+                            <div class="panel-title">
+                                <span class="head-ico" data-icon="settings" data-icon-size="30"></span>
+                                <div><h2 id="pricesTitle">Tabela de preços</h2><p class="panel-sub">Defina os valores de cada tipo de impressão</p></div>
+                            </div>
+                            <div class="panel-actions" id="priceActions">
+                                <button type="button" class="btn btn-secondary btn-sm" id="editPricesBtn" data-icon="pencil">Editar preços</button>
+                                <button type="button" class="btn btn-ghost btn-sm" id="cancelPricesBtn" data-icon="x" hidden>Cancelar</button>
+                                <button type="button" class="btn btn-primary btn-sm" id="savePricesBtn" data-icon="check" hidden>Salvar</button>
+                            </div>
+                        </header>
+                        <form class="price-list" id="priceForm" novalidate>
+                            <div class="price-row"><span class="price-ico" data-icon="copy" data-icon-size="22"></span><label for="preco1">Xerox preto e branco</label><div class="input-affix"><span>R$</span><input type="number" id="preco1" min="0" step="0.01" inputmode="decimal" readonly></div><small>por folha</small></div>
+                            <div class="price-row"><span class="price-ico" data-icon="palette" data-icon-size="22"></span><label for="preco2">Xerox colorido</label><div class="input-affix"><span>R$</span><input type="number" id="preco2" min="0" step="0.01" inputmode="decimal" readonly></div><small>por folha</small></div>
+                            <div class="price-row"><span class="price-ico" data-icon="file-text" data-icon-size="22"></span><label for="preco3">Digital preto e branco</label><div class="input-affix"><span>R$</span><input type="number" id="preco3" min="0" step="0.01" inputmode="decimal" readonly></div><small>por folha</small></div>
+                            <div class="price-row"><span class="price-ico" data-icon="image" data-icon-size="22"></span><label for="preco4">Digital colorido</label><div class="input-affix"><span>R$</span><input type="number" id="preco4" min="0" step="0.01" inputmode="decimal" readonly></div><small>por folha</small></div>
+                            <div class="price-row price-row-offset"><span class="price-ico" data-icon="layers" data-icon-size="22"></span><label for="precoOffset">Folha offset <em>(somada ao tipo)</em></label><div class="input-affix"><span>R$</span><input type="number" id="precoOffset" min="0" step="0.01" inputmode="decimal" readonly></div><small>por folha offset</small></div>
+                        </form>
+                        <footer class="panel-foot">
+                            <button type="button" class="btn btn-ghost btn-sm" id="resetPricesBtn" data-icon="rotate-ccw">Restaurar preços padrão</button>
+                        </footer>
+                    </section>
+
+                    <section class="panel backup-panel" aria-labelledby="backupTitle">
+                        <header class="panel-head">
+                            <div class="panel-title">
+                                <span class="tile tile-round" data-icon="info" data-icon-size="24"></span>
+                                <div><h2>Informações do sistema</h2><p class="panel-sub">Dados e configurações gerais</p></div>
+                            </div>
+                        </header>
+                        <div class="panel-body">
+                            <div class="info-block">
+                                <span class="info-ico" data-icon="database" data-icon-size="30"></span>
+                                <div>
+                                    <h3 id="backupTitle">Backup no Google Sheets</h3>
+                                    <p class="muted">Toda alteração é copiada para a planilha. A recuperação traz de volta o que existe lá e falta no banco. Nada é apagado nem sobrescrito.</p>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline btn-block" id="recoverSheetsBtn" data-icon="cloud-download">Recuperar da planilha</button>
+                        </div>
+                    </section>
+
+                    <section class="panel panel-danger" aria-labelledby="dangerTitle">
+                        <header class="panel-head">
+                            <div class="panel-title">
+                                <span class="head-ico head-ico-violet" data-icon="cloud-upload" data-icon-size="34"></span>
+                                <div><h2 id="dangerTitle">Apagar tudo</h2><p class="panel-sub">Remova todos os registros de impressões, clientes e pagamentos do banco e da planilha.</p></div>
+                            </div>
+                            <span class="danger-art" data-icon="trash-2" data-icon-size="88" aria-hidden="true"></span>
+                        </header>
+                        <div class="panel-body">
+                            <p class="warn-banner" data-icon="triangle-alert">Esta ação não pode ser desfeita. Certifique-se de que realmente deseja continuar.</p>
+                            <button type="button" class="btn btn-danger" id="clearAllBtn" data-icon="trash-2">Apagar todos os registros</button>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Barra inferior (celular) -->
+    <nav class="tabbar" aria-label="Seções">
+        <a class="tab" href="#/impressoes" data-view="impressoes" data-icon="printer"><span>Impressões</span></a>
+        <a class="tab" href="#/clientes"   data-view="clientes"   data-icon="users"><span>Clientes</span></a>
+        <a class="tab" href="#/ajustes"    data-view="ajustes"    data-icon="tag"><span>Preços</span></a>
+    </nav>
+</div>
+
+<!-- ============ Avisos e carregamento ============ -->
+<div class="toasts" id="toasts" aria-live="polite" aria-atomic="false"></div>
+
+<div class="loader" id="loader" role="status" aria-live="polite" hidden>
+    <div class="loader-card">
+        <div class="loader-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <p id="loaderText">Carregando…</p>
+    </div>
+</div>
+
+<!-- ============ Diálogos ============ -->
+
+<dialog class="dlg dlg-sm" id="dlgConfirm" aria-labelledby="confirmTitle">
+    <form method="dialog" class="dlg-form" id="confirmForm">
+        <header class="dlg-head"><h2 id="confirmTitle">Confirmar</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body">
+            <p id="confirmMessage"></p>
+            <div class="field" id="confirmTypeField" hidden>
+                <label for="confirmTypeInput" id="confirmTypeLabel"></label>
+                <input type="text" id="confirmTypeInput" autocomplete="off" autocapitalize="characters">
+            </div>
+        </div>
+        <footer class="dlg-foot">
+            <button type="button" class="btn btn-secondary" id="confirmCancelBtn" data-close>Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="confirmOkBtn" value="ok">Confirmar</button>
+        </footer>
+    </form>
+</dialog>
+
+<dialog class="dlg dlg-sm" id="dlgNotice" aria-labelledby="noticeTitle">
+    <div class="dlg-form">
+        <header class="dlg-head"><h2 id="noticeTitle"></h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body" id="noticeBody"></div>
+        <footer class="dlg-foot"><button type="button" class="btn btn-primary" data-close>Entendi</button></footer>
+    </div>
+</dialog>
+
+<dialog class="dlg" id="dlgAdd" aria-labelledby="addTitle">
+    <form class="dlg-form" id="addForm" novalidate>
+        <header class="dlg-head"><h2 id="addTitle">Valor avulso</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body">
+            <p class="muted">Registre uma venda só com o valor total, sem detalhar folhas.</p>
+            <div class="field"><label for="addCliente">Cliente</label><input type="text" id="addCliente" list="clientesList" autocomplete="off" maxlength="80" required></div>
+            <div class="field-row">
+                <div class="field"><label for="addValorTotal">Valor total</label><div class="input-affix"><span>R$</span><input type="number" id="addValorTotal" inputmode="decimal" min="0.01" step="0.01" placeholder="0,00" required></div></div>
+                <div class="field"><label for="addDataHora">Data e hora</label><input type="datetime-local" id="addDataHora" required></div>
+            </div>
+            <p class="field-error" id="addError" role="alert"></p>
+        </div>
+        <footer class="dlg-foot">
+            <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
+            <button type="submit" class="btn btn-primary" data-icon="plus">Adicionar</button>
+        </footer>
+    </form>
+</dialog>
+
+<dialog class="dlg" id="dlgEdit" aria-labelledby="editTitle">
+    <form class="dlg-form" id="editForm" novalidate>
+        <header class="dlg-head"><h2 id="editTitle">Editar impressão</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body">
+            <div class="field"><label for="editCliente">Cliente</label><input type="text" id="editCliente" list="clientesList" autocomplete="off" maxlength="80" required></div>
+            <div class="field" id="editTipoField">
+                <label for="editTipoImpressao">Tipo de impressão</label>
+                <select id="editTipoImpressao"></select>
+                <p class="field-hint" id="editPrecoTipo"></p>
+            </div>
+            <div class="field-row" id="editAutoFields">
+                <div class="field"><label for="editFolhasNormais">Folhas</label><input type="number" id="editFolhasNormais" inputmode="numeric" min="0" step="1"></div>
+                <div class="field"><label for="editFolhasOffset">Folhas offset</label><input type="number" id="editFolhasOffset" inputmode="numeric" min="0" step="1"></div>
+                <div class="field"><label for="editProjetoCanva">Projeto Canva</label><div class="input-affix"><span>R$</span><input type="number" id="editProjetoCanva" inputmode="decimal" min="0" step="0.01"></div></div>
+                <div class="field"><label for="editTrabalho">Trabalho extra</label><div class="input-affix"><span>R$</span><input type="number" id="editTrabalho" inputmode="decimal" min="0" step="0.01"></div></div>
+            </div>
+            <div class="field" id="editManualField" hidden>
+                <label for="editValorTotalManual">Valor total avulso</label>
+                <div class="input-affix"><span>R$</span><input type="number" id="editValorTotalManual" inputmode="decimal" min="0" step="0.01"></div>
+                <p class="field-hint">Impressão registrada só com valor. Preencher folhas ou extras troca para cálculo automático.</p>
+            </div>
+            <div class="field"><label for="editDataHora">Data e hora</label><input type="datetime-local" id="editDataHora" required></div>
+            <div class="total-box">
+                <div class="total-line"><span class="total-label">Valor total</span><output class="total-value" id="editValorTotal">R$ 0,00</output></div>
+                <ul class="breakdown" id="editTotalBreakdown"></ul>
+            </div>
+            <p class="field-error" id="editError" role="alert"></p>
+        </div>
+        <footer class="dlg-foot">
+            <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
+            <button type="submit" class="btn btn-primary" data-icon="check">Salvar alterações</button>
+        </footer>
+    </form>
+</dialog>
+
+<dialog class="dlg" id="dlgPayment" aria-labelledby="paymentTitle">
+    <div class="dlg-form">
+        <header class="dlg-head"><h2 id="paymentTitle">Registrar pagamento</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body">
+            <div class="field">
+                <label for="paymentCliente">Cliente</label>
+                <select id="paymentCliente"></select>
+                <p class="field-hint" id="paymentEmpty" hidden>Nenhum cliente com valor em aberto.</p>
+            </div>
+            <dl class="debt-grid" id="clientDebtInfo" hidden>
+                <div><dt>Total original</dt><dd id="clientTotalOriginal">R$ 0,00</dd></div>
+                <div><dt>Já pago</dt><dd id="clientPaidValue">R$ 0,00</dd></div>
+                <div class="debt-open"><dt>Em aberto</dt><dd id="clientDebtValue">R$ 0,00</dd></div>
+            </dl>
+            <div class="field">
+                <label for="paymentValue">Valor do pagamento</label>
+                <div class="input-affix"><span>R$</span><input type="number" id="paymentValue" inputmode="decimal" min="0.01" step="0.01" placeholder="0,00"></div>
+                <p class="field-hint">O valor quita primeiro as impressões de menor saldo.</p>
+                <p class="field-error" id="paymentError" role="alert"></p>
+            </div>
+        </div>
+        <footer class="dlg-foot">
+            <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
+            <button type="button" class="btn btn-primary" id="applyPaymentBtn" data-icon="check">Aplicar pagamento</button>
+        </footer>
+    </div>
+</dialog>
+
+<dialog class="dlg" id="dlgHistory" aria-labelledby="historyTitle">
+    <div class="dlg-form">
+        <header class="dlg-head"><h2 id="historyTitle">Histórico de pagamentos</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body">
+            <div class="field"><label for="historyCliente">Cliente</label><select id="historyCliente"></select></div>
+            <div id="paymentHistoryList" class="history-list"></div>
+        </div>
+        <footer class="dlg-foot"><button type="button" class="btn btn-secondary" data-close>Fechar</button></footer>
+    </div>
+</dialog>
+
+<dialog class="dlg dlg-sm" id="dlgPix" aria-labelledby="pixTitle">
+    <div class="dlg-form">
+        <header class="dlg-head"><h2 id="pixTitle">QR Code Pix</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body pix-body">
+            <div class="pix-frame" id="pixFrame">
+                <img id="pixQrImage" alt="QR Code Pix para pagamento" hidden>
+                <div class="pix-empty" id="pixQrPlaceholder">
+                    <strong>Nenhum QR Code salvo</strong>
+                    <span>Envie a imagem do QR Code do seu banco.</span>
+                </div>
+            </div>
+            <p class="field-hint pix-status" id="pixUploadStatus" role="status"></p>
+            <div class="pix-actions">
+                <label class="btn btn-secondary" for="pixQrUploadInput" id="pixUploadLabel" tabindex="0" role="button"><span id="pixUploadBtnText">Enviar QR Code</span></label>
+                <input type="file" id="pixQrUploadInput" accept="image/*" hidden>
+                <button type="button" class="btn btn-secondary" id="pixDownloadBtn" data-icon="download" hidden>Baixar</button>
+                <button type="button" class="btn btn-ghost" id="pixRemoveBtn" data-icon="trash-2" hidden>Remover</button>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<dialog class="dlg dlg-wide" id="dlgPdf" aria-labelledby="pdfTitle">
+    <div class="dlg-form">
+        <header class="dlg-head">
+            <div class="panel-title"><span class="head-ico" data-icon="file-text" data-icon-size="34"></span><div><h2 id="pdfTitle">Relatórios em PDF</h2><p class="panel-sub">Gere relatórios e exporte seus dados em PDF</p></div></div>
+            <button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button>
+        </header>
+        <div class="dlg-body pdf-layout" id="pdfBuilder">
+            <fieldset class="pdf-types">
+                <legend class="sr-only">Tipo de relatório</legend>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="completo" checked><span class="pdf-type-ico" data-icon="users" data-icon-size="24"></span><span class="pdf-type-text"><strong>Relatório completo</strong><small>Totais, gráficos e tabela por cliente</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="resumo"><span class="pdf-type-ico" data-icon="user" data-icon-size="24"></span><span class="pdf-type-text"><strong>Resumo por cliente</strong><small>Financeiro consolidado</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="cliente"><span class="pdf-type-ico" data-icon="printer" data-icon-size="24"></span><span class="pdf-type-text"><strong>Por cliente</strong><small>Todas as impressões de uma pessoa</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="periodo"><span class="pdf-type-ico" data-icon="calendar" data-icon-size="24"></span><span class="pdf-type-text"><strong>Por período</strong><small>Filtrado por data</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="unica"><span class="pdf-type-ico" data-icon="shield-check" data-icon-size="24"></span><span class="pdf-type-text"><strong>Comprovante</strong><small>Uma impressão específica</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+            </fieldset>
+            <div class="pdf-config">
+                <div class="pdf-head"><span class="head-ico" data-icon="chart-column" data-icon-size="30"></span><div><h3 id="pdfTypeTitle">Relatório completo</h3><p class="panel-sub" id="pdfTypeSub"></p></div></div>
+                <div id="pdfConfigPanel" class="pdf-fields"></div>
+                <div id="pdfPreviewBox" class="pdf-preview" aria-live="polite"></div>
+            </div>
+        </div>
+        <div class="dlg-body pdf-result" id="pdfResult" hidden>
+            <div class="pdf-result-icon" aria-hidden="true"></div>
+            <h3>PDF pronto</h3>
+            <p class="muted" id="pdfActionFilename"></p>
+            <div class="pdf-result-actions">
+                <button type="button" class="btn btn-primary" id="pdfActionView" data-icon="eye">Visualizar</button>
+                <button type="button" class="btn btn-secondary" id="pdfActionDownload" data-icon="download">Baixar</button>
+            </div>
+        </div>
+        <footer class="dlg-foot" id="pdfFoot">
+            <button type="button" class="btn btn-secondary" data-close data-icon="x">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="pdfGenerateBtn" data-icon="file-text">Gerar PDF</button>
+        </footer>
+        <footer class="dlg-foot" id="pdfResultFoot" hidden>
+            <button type="button" class="btn btn-secondary" id="pdfBackBtn">Novo relatório</button>
+            <button type="button" class="btn btn-ghost" data-close>Fechar</button>
+        </footer>
+    </div>
+</dialog>
+
+</body>
+</html>
