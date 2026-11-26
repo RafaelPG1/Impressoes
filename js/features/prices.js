@@ -55,6 +55,7 @@ async function save() {
         await withLoader(() => store.savePrices(prices, offset), 'Salvando preços…');
         state.prices = prices;
         state.offsetPrice = offset;
+        state.pricesOk = true;
         setEditing(false);
         renderPrices();
         emit('prices');
@@ -75,6 +76,7 @@ async function reset() {
     try {
         await withLoader(() => store.resetPrices(), 'Restaurando…');
         setPrices(null);
+        state.pricesOk = true;
         setEditing(false);
         renderPrices();
         emit('prices');
@@ -88,9 +90,12 @@ async function reset() {
 export async function loadPrices() {
     try {
         setPrices(await store.loadPrices());
+        state.pricesOk = true;
     } catch (err) {
         console.error('[PRECOS] erro ao carregar:', err);
         setPrices(null);
+        state.pricesOk = false;
+        notify.error('Não foi possível carregar os preços. Recarregue a página antes de registrar impressões.', null, 8000);
     }
     renderPrices();
     emit('prices');

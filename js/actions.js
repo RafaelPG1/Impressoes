@@ -15,6 +15,11 @@ export async function refresh() {
     emit('data');
 }
 
+/** Mensagem para o usuário: erros do Firebase (têm .code) são técnicos; os nossos já vêm em português. */
+const msgErro = (err, padrao) => (err?.code || !err?.message ? padrao : err.message);
+
+const PRECOS_AUSENTES = 'Os preços não foram carregados do banco. Recarregue a página para não gravar valores errados.';
+
 /** "Xerox P&B R$ 0.50" — formato gravado no banco (compatível com os dados antigos). */
 export function tipoPrecoLabel(tipo) {
     if (!tipo) return 'Desconhecido';
@@ -22,6 +27,7 @@ export function tipoPrecoLabel(tipo) {
 }
 
 export async function addImpression(data) {
+    if (!state.pricesOk) { notify.error(PRECOS_AUSENTES); return false; }
     try {
         await withLoader(async () => {
             await store._syncAddImpression(data);
@@ -37,6 +43,7 @@ export async function addImpression(data) {
 }
 
 export async function updateImpression(id, data) {
+    if (!state.pricesOk) { notify.error(PRECOS_AUSENTES); return false; }
     try {
         await withLoader(async () => {
             await store.updateImpression(id, { ...data, tipoPreco: tipoPrecoLabel(data.tipoImpressao) });
@@ -46,7 +53,7 @@ export async function updateImpression(id, data) {
         return true;
     } catch (err) {
         console.error('[IMPRESSAO] erro ao atualizar:', err);
-        notify.error('Não foi possível salvar as alterações.');
+        notify.error(msgErro(err, 'Não foi possível salvar as alterações.'), null, 8000);
         return false;
     }
 }
@@ -60,7 +67,7 @@ async function deleteImpression(id) {
         notify.success('Impressão excluída.');
     } catch (err) {
         console.error('[IMPRESSAO] erro ao excluir:', err);
-        notify.error('Não foi possível excluir a impressão.');
+        notify.error(msgErro(err, 'Não foi possível excluir a impressão.'), null, 8000);
     }
 }
 

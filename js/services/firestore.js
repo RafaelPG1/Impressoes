@@ -12,6 +12,10 @@ import {
 
 import { FIREBASE_CONFIG, SHEETS_URL, DEFAULT_PRICES } from '../config.js';
 import { SheetsSync } from './sheets.js';
+import { allocate } from '../utils/allocate.js';
+import { round2, statusOf } from '../utils/format.js';
+
+const normNome = (n) => String(n || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FIREBASE MANAGER — Classe principal
@@ -53,22 +57,49 @@ class FirebaseManager {
         return new Date(value);
     }
 
-    _calcStatus(valorPago, valorTotal) {
-        if (valorPago >= valorTotal && valorTotal > 0) return 'pago';
-        if (valorPago > 0) return 'parcial';
-        return 'pendente';
+    /** Grava em lotes de 450. shortcut: acima disso perde atomicidade; uso pessoal raramente passa. */
+    async _commit(ops) {
+        for (let i = 0; i < ops.length; i += 450) {
+            const b = writeBatch(this.db);
+            ops.slice(i, i + 450).forEach((fn) => fn(b));
+            await b.commit();
+        }
+    }
+
+    /** Vínculos pagamento–impressão de uma lista de pagamentos ('in' aceita até 30 por consulta). */
+    async _relDocs(pagamentoIds) {
+        const out = [];
+        for (let i = 0; i < pagamentoIds.length; i += 30) {
+            const snap = await getDocs(query(this._col('pagamentosImpressoes'),
+                where('pagamentoId', 'in', pagamentoIds.slice(i, i + 30))));
+            out.push(...snap.docs);
+        }
+        return out;
+    }
+
+    async _impressoesDoCliente(clienteId) {
+        const snap = await getDocs(query(this._col('impressoes'), where('clienteId', '==', clienteId)));
+        return snap.docs.map((d) => ({ id: d.id, ref: d.ref, ...d.data() }));
+    }
+
+    /** Documento do Firestore → objeto pronto para a planilha (datas em ISO, sem sentinelas). */
+    _paraPlanilha(id, atual, extra = {}) {
+        const m = { ...atual, ...extra };
+        delete m.updatedAt;
+        m.createdAt = this._toDate(atual.createdAt).toISOString();
+        return this._sheets.formatImpressao(id, m);
     }
 
     // ── Clientes ────────────────────────────────────────────────────────────
 
     async _getOrCreateCliente(nome) {
-        const nomeTrim = (nome || '').trim();
+        const nomeTrim = (nome || '').trim().replace(/\s+/g, ' ');
         if (!nomeTrim) throw new Error('Nome do cliente é obrigatório');
 
-        const snap = await getDocs(
-            query(this._col('clientes'), where('nome', '==', nomeTrim), limit(1))
-        );
-        if (!snap.empty) return { id: snap.docs[0].id, ...snap.docs[0].data() };
+        // Compara sem diferenciar maiúsculas/espaços: "maria  souza" = "Maria Souza".
+        const snap  = await getDocs(this._col('clientes'));
+        const achou = snap.docs.find((d) => normNome(d.data().nome) === normNome(nomeTrim));
+        if (achou) return { id: achou.id, ...achou.data() };
 
         const novoRef = await addDoc(this._col('clientes'), {
             nome: nomeTrim, telefone: `Aguardando cadastro - ${nomeTrim}`,
@@ -100,7 +131,7 @@ class FirebaseManager {
             return prices;
         } catch (err) {
             console.error('[FIREBASE] ❌ Erro ao carregar preços:', err);
-            return null;
+            throw err;
         }
     }
 
@@ -111,93 +142,38 @@ class FirebaseManager {
 
     async loadImpressions() {
         if (!this.isConfigured) return [];
-        try {
-            const [impressoesSnap, clientesSnap] = await Promise.all([
-                getDocs(query(this._col('impressoes'), orderBy('createdAt', 'desc'))),
-                getDocs(this._col('clientes')),
-            ]);
-            if (impressoesSnap.empty) return [];
+        // Erros sobem: lista vazia por falha de rede não pode parecer "sem dados".
+        const [impressoesSnap, clientesSnap] = await Promise.all([
+            getDocs(this._col('impressoes')),
+            getDocs(this._col('clientes')),
+        ]);
 
-            const clientesMap = {};
-            clientesSnap.forEach(d => { clientesMap[d.id] = d.data().nome; });
+        const clientesMap = {};
+        clientesSnap.forEach(d => { clientesMap[d.id] = d.data().nome; });
 
-            return impressoesSnap.docs.map(d => {
-                const data = d.data();
-                return {
-                    id:              d.id,
-                    cliente:         clientesMap[data.clienteId] || 'Desconhecido',
-                    clienteId:       data.clienteId,
-                    tipoImpressao:   data.tipoImpressao  || 0,
-                    tipoPreco:       data.tipoPreco       || 'Desconhecido',
-                    folhasNormais:   data.folhasNormais   || 0,
-                    folhasOffset:    data.folhasOffset    || 0,
-                    projetoCanva:    parseFloat(data.projetoCanva  || 0),
-                    trabalho:        parseFloat(data.trabalho      || 0),
-                    valorTotal:      parseFloat(data.valorTotal    || 0),
-                    valorPago:       parseFloat(data.valorPago     || 0),
-                    valorRestante:   parseFloat(data.valorRestante || 0),
-                    statusPagamento: data.statusPagamento || 'pendente',
-                    dataHora:        this._toDate(data.dataImpressao).toISOString(),
-                    timestamp:       this._toDate(data.createdAt).getTime(),
-                };
-            });
-        } catch (err) {
-            console.error('[FIREBASE] ❌ Erro ao carregar impressões:', err);
-            return [];
-        }
+        return impressoesSnap.docs.map(d => {
+            const data = d.data();
+            return {
+                id:              d.id,
+                cliente:         clientesMap[data.clienteId] || 'Desconhecido',
+                clienteId:       data.clienteId,
+                tipoImpressao:   data.tipoImpressao  || 0,
+                tipoPreco:       data.tipoPreco       || 'Desconhecido',
+                folhasNormais:   data.folhasNormais   || 0,
+                folhasOffset:    data.folhasOffset    || 0,
+                projetoCanva:    parseFloat(data.projetoCanva  || 0),
+                trabalho:        parseFloat(data.trabalho      || 0),
+                valorTotal:      parseFloat(data.valorTotal    || 0),
+                valorPago:       parseFloat(data.valorPago     || 0),
+                valorRestante:   parseFloat(data.valorRestante || 0),
+                statusPagamento: data.statusPagamento || 'pendente',
+                dataHora:        this._toDate(data.dataImpressao).toISOString(),
+                timestamp:       this._toDate(data.createdAt ?? data.dataImpressao).getTime(),
+            };
+        }).sort((a, b) => b.timestamp - a.timestamp);
     }
 
     updateImpression(id, data) { return this._syncUpdateImpression({ id, impressionData: data }); }
-
-    // ── Resumo de clientes ───────────────────────────────────────────────────
-
-    async loadClientsSummary() {
-        if (!this.isConfigured) return [];
-        try {
-            const [clientesSnap, impressoesSnap] = await Promise.all([
-                getDocs(this._col('clientes')),
-                getDocs(this._col('impressoes')),
-            ]);
-            if (clientesSnap.empty) return [];
-
-            const clientes = {};
-            clientesSnap.forEach(d => { clientes[d.id] = { id: d.id, ...d.data() }; });
-
-            const agrupado = {};
-            impressoesSnap.forEach(d => {
-                const imp = d.data();
-                const cid = imp.clienteId;
-                if (!cid || !clientes[cid]) return;
-
-                if (!agrupado[cid]) {
-                    agrupado[cid] = {
-                        id: cid, cliente: clientes[cid].nome, telefone: clientes[cid].telefone || '',
-                        totalCompras: 0, folhasNormais: 0, folhasOffset: 0,
-                        valorAcumulado: 0, valorPagoTotal: 0, saldoDevedor: 0,
-                    };
-                }
-
-                const g = agrupado[cid];
-                g.totalCompras   += 1;
-                g.folhasNormais  += parseInt(imp.folhasNormais || 0);
-                g.folhasOffset   += parseInt(imp.folhasOffset  || 0);
-                g.valorAcumulado += parseFloat(imp.valorTotal  || 0);
-                g.valorPagoTotal += parseFloat(imp.valorPago   || 0);
-            });
-
-            return Object.values(agrupado)
-                .filter(g => g.totalCompras > 0)
-                .map(g => ({
-                    ...g,
-                    saldoDevedor:   parseFloat(Math.max(0, g.valorAcumulado - g.valorPagoTotal).toFixed(2)),
-                    valorAcumulado: parseFloat(g.valorAcumulado.toFixed(2)),
-                    valorPagoTotal: parseFloat(g.valorPagoTotal.toFixed(2)),
-                }));
-        } catch (err) {
-            console.error('[FIREBASE] ❌ Erro ao carregar resumo:', err);
-            return [];
-        }
-    }
 
     // ── Importa dados da aba Adicionar do Sheets → Firebase ─────────────────
 
@@ -236,16 +212,19 @@ class FirebaseManager {
             'Impressão Digital Colorido': 4,
         };
 
+        const prices = await this.loadPrices();   // uma vez só (antes era uma leitura por registro)
+        const num    = (v) => Number(v) || 0;
+
         let importados = 0;
-        for (const reg of registros) {
+        for (const raw of registros) {
             try {
+                const reg = { ...raw, folhas: num(raw.folhas), offset: num(raw.offset), canva: num(raw.canva), trabalho: num(raw.trabalho) };
                 const tipoNum     = TIPO_MAP[reg.tipo] || 0;
-                const prices      = await this.loadPrices();
                 const precoTipo   = prices?.[tipoNum] || 0;
                 const precoOffset = prices?.[5]       || 0;
 
                 const totalCalculado = (reg.folhas * precoTipo) + (reg.offset * precoOffset) + reg.canva + reg.trabalho;
-                const valorFinal     = totalCalculado > 0 ? totalCalculado : (reg.total || 0);
+                const valorFinal     = round2(totalCalculado > 0 ? totalCalculado : num(reg.total));
 
                 const tipoPreco = tipoNum > 0
                     ? `${reg.tipo} R$ ${precoTipo.toFixed(2)}`
@@ -277,7 +256,7 @@ class FirebaseManager {
                 });
                 importados++;
             } catch (err) {
-                console.error(`[ADICIONAR] ❌ Erro ao importar "${reg.nome}":`, err.message);
+                console.error(`[ADICIONAR] ❌ Erro ao importar "${raw.nome}":`, err.message);
             }
         }
 
@@ -290,10 +269,11 @@ class FirebaseManager {
     async _syncAddImpression(impressionData) {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
+        const valorTotal      = round2(parseFloat(impressionData.valorTotal || 0));
+        const valorPago       = round2(parseFloat(impressionData.valorPago  || 0));
+        if (!Number.isFinite(valorTotal) || valorTotal < 0) throw new Error('Valor total inválido');
         const cliente         = await this._getOrCreateCliente(impressionData.cliente);
-        const valorTotal      = parseFloat(impressionData.valorTotal || 0);
-        const valorPago       = parseFloat(impressionData.valorPago  || 0);
-        const valorRestante   = parseFloat((valorTotal - valorPago).toFixed(2));
+        const valorRestante   = round2(valorTotal - valorPago);
         const statusPagamento = impressionData.statusPagamento === 'ativo'
             ? 'pendente' : (impressionData.statusPagamento || 'pendente');
 
@@ -323,42 +303,74 @@ class FirebaseManager {
     async _syncUpdateImpression({ id, impressionData }) {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
+        const ref  = this._doc('impressoes', id);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) throw new Error('Impressão não encontrada');
+        const atual = snap.data();
+
+        const valorTotal = round2(parseFloat(impressionData.valorTotal || 0));
+        if (!Number.isFinite(valorTotal) || valorTotal < 0) throw new Error('Valor total inválido');
+
+        // Novo total menor que o já pago: o excesso vai para outras impressões em aberto do cliente.
+        const pagoAtual = round2(parseFloat(atual.valorPago || 0));
+        const pagoNovo  = Math.min(pagoAtual, valorTotal);
+        const excedente = round2(pagoAtual - pagoNovo);
+        let realoc = { updates: [], sobra: 0 }, outras = [];
+        if (excedente > 0) {
+            outras = (await this._impressoesDoCliente(atual.clienteId)).filter((i) => i.id !== id);
+            realoc = allocate(outras, excedente);
+            if (realoc.sobra > 0) {
+                throw new Error('O novo valor é menor que o já pago e o cliente não tem outra impressão em aberto para receber a diferença. Remova um pagamento no histórico antes de editar.');
+            }
+        }
+
+        let clienteId = atual.clienteId;
+        if (impressionData.cliente) {
+            const cliente = await this._getOrCreateCliente(impressionData.cliente);
+            if (cliente.id !== atual.clienteId && pagoAtual > 0) {
+                throw new Error('Esta impressão já tem pagamento. Remova o pagamento no histórico antes de trocar o cliente.');
+            }
+            clienteId = cliente.id;
+        }
+
+        const status = statusOf({ valorTotal, valorPago: pagoNovo });
         const update = {
-            tipoPreco:       impressionData.tipoPreco       || 'Desconhecido',
-            folhasNormais:   impressionData.folhasNormais    || 0,
-            folhasOffset:    impressionData.folhasOffset     || 0,
+            clienteId,
+            tipoImpressao:   impressionData.tipoImpressao || 0,
+            tipoPreco:       impressionData.tipoPreco || 'Desconhecido',
+            folhasNormais:   impressionData.folhasNormais || 0,
+            folhasOffset:    impressionData.folhasOffset  || 0,
             projetoCanva:    parseFloat(impressionData.projetoCanva || 0),
             trabalho:        parseFloat(impressionData.trabalho     || 0),
-            valorTotal:      parseFloat(impressionData.valorTotal   || 0),
-            statusPagamento: impressionData.statusPagamento  || 'pendente',
+            valorTotal,
+            valorPago:       pagoNovo,
+            valorRestante:   round2(valorTotal - pagoNovo),
+            statusPagamento: status,
             updatedAt:       serverTimestamp(),
         };
+        if (impressionData.dataHora) update.dataImpressao = impressionData.dataHora;
+        if (status !== 'pago' && atual.dataQuitacao) update.dataQuitacao = '';
+        if (pagoNovo === 0 && atual.dataPrimeiroPagamento) update.dataPrimeiroPagamento = '';
 
-        const snapAtual = await getDoc(this._doc('impressoes', id));
-        if (snapAtual.exists()) {
-            const valorPagoAtual = parseFloat(snapAtual.data().valorPago || 0);
-            update.valorRestante = Math.max(0, parseFloat((update.valorTotal - valorPagoAtual).toFixed(2)));
-            update.valorPago     = valorPagoAtual;
-        }
-        if (impressionData.dataHora)
-            update.dataImpressao = impressionData.dataHora;
-        if (impressionData.tipoImpressao && impressionData.tipoImpressao !== 0)
-            update.tipoImpressao = impressionData.tipoImpressao;
-        if (impressionData.cliente) {
-            const cliente    = await this._getOrCreateCliente(impressionData.cliente);
-            update.clienteId = cliente.id;
-        }
+        const ops = [(b) => b.update(ref, update)];
+        realoc.updates.forEach((u) => {
+            const { id: oid, aplicado, ...campos } = u;
+            ops.push((b) => b.update(this._doc('impressoes', oid), campos));
+        });
+        await this._commit(ops);
 
-        await updateDoc(this._doc('impressoes', id), update);
-        this._sheets.upsert('Impressoes', id, this._sheets.formatImpressao(id, update));
+        // Planilha: linha completa (antes a edição apagava clienteId/datas do backup).
+        this._sheets.upsert('Impressoes', id, this._paraPlanilha(id, atual, update));
+        realoc.updates.forEach((u) => {
+            const o = outras.find((x) => x.id === u.id);
+            this._sheets.upsert('Impressoes', u.id, this._paraPlanilha(u.id, o, u));
+        });
         console.log('[FIREBASE] ✅ Impressão atualizada:', id);
-        return { id, ...update };
+        return { id, ...update, excedenteRealocado: excedente };
     }
 
-    // ── DELEÇÃO CORRIGIDA ────────────────────────────────────────────────────
-    // Se a impressão deletada tinha valorPago > 0, redistribui esse crédito
-    // para as demais impressões pendentes do mesmo cliente (menor valor primeiro).
-
+    // Excluir: o valor já pago nela passa para as outras impressões em aberto do cliente
+    // (menor dívida primeiro). Tudo em um lote só: ou aplica tudo, ou nada.
     async _syncDeleteImpression({ id }) {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
@@ -368,110 +380,52 @@ class FirebaseManager {
             return true;
         }
 
-        const impData       = snap.data();
-        const { clienteId } = impData;
-        const valorPagoNaImpressao = parseFloat(impData.valorPago || 0);
+        const { clienteId } = snap.data();
+        const pagoNaImpressao = round2(parseFloat(snap.data().valorPago || 0));
+        const outras = (await this._impressoesDoCliente(clienteId)).filter((i) => i.id !== id);
 
-        // 1. Deleta a impressão
-        await deleteDoc(this._doc('impressoes', id));
+        const realoc = pagoNaImpressao > 0 ? allocate(outras, pagoNaImpressao) : { updates: [], sobra: 0 };
+        if (realoc.sobra > 0) {
+            throw new Error('As outras impressões do cliente não absorvem o valor já pago. Remova o pagamento no histórico antes.');
+        }
+
+        // Vínculos pagamento–impressão desta impressão ficariam órfãos.
+        const relSnap = await getDocs(query(this._col('pagamentosImpressoes'), where('impressaoId', '==', id)));
+
+        const agora = new Date().toISOString();
+        const ops = [(b) => b.delete(this._doc('impressoes', id))];
+        relSnap.docs.forEach((d) => ops.push((b) => b.delete(d.ref)));
+        const extras = new Map();
+        realoc.updates.forEach((u) => {
+            const o = outras.find((x) => x.id === u.id);
+            const { id: oid, aplicado, ...campos } = u;
+            if (!o.dataPrimeiroPagamento) campos.dataPrimeiroPagamento = agora;
+            if (campos.statusPagamento === 'pago' && !o.dataQuitacao) campos.dataQuitacao = agora;
+            extras.set(oid, campos);
+            ops.push((b) => b.update(this._doc('impressoes', oid), campos));
+        });
+        const orfao = outras.length === 0;
+        if (orfao) ops.push((b) => b.delete(this._doc('clientes', clienteId)));
+        await this._commit(ops);
+
         this._sheets.delete('Impressoes', id);
+        relSnap.docs.forEach((d) => this._sheets.delete('Pagamentos_Impressoes', d.id));
+        extras.forEach((campos, oid) => {
+            const o = outras.find((x) => x.id === oid);
+            this._sheets.upsert('Impressoes', oid, this._paraPlanilha(oid, o, campos));
+        });
+        if (orfao) this._sheets.delete('Clientes', clienteId);
         console.log('[FIREBASE] ✅ Impressão deletada:', id);
-
-        // 2. Se havia valor pago nela, redistribui para as outras impressões do cliente
-        if (valorPagoNaImpressao > 0) {
-            console.log(`[DELETE] 💰 Redistribuindo R$ ${valorPagoNaImpressao.toFixed(2)} para outras impressões do cliente ${clienteId}`);
-
-            const outrasSnap = await getDocs(
-                query(this._col('impressoes'), where('clienteId', '==', clienteId))
-            );
-
-            // Filtra apenas as que ainda têm saldo devedor, ordena pelo menor valor restante primeiro
-            const pendentes = outrasSnap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(imp => {
-                    const resto = parseFloat(imp.valorRestante ?? (imp.valorTotal - imp.valorPago) ?? 0);
-                    return resto > 0;
-                })
-                .sort((a, b) => {
-                    const restoA = parseFloat(a.valorRestante ?? (a.valorTotal - a.valorPago) ?? 0);
-                    const restoB = parseFloat(b.valorRestante ?? (b.valorTotal - b.valorPago) ?? 0);
-                    return restoA - restoB; // menor valor primeiro (igual ao _syncApplyPayment)
-                });
-
-            if (pendentes.length > 0) {
-                let restante = valorPagoNaImpressao;
-                const batch  = writeBatch(this.db);
-
-                for (const imp of pendentes) {
-                    if (restante <= 0) break;
-
-                    const valorTotal  = parseFloat(imp.valorTotal  || 0);
-                    const pagoAntes   = parseFloat(imp.valorPago   || 0);
-                    const restoImp    = parseFloat(imp.valorRestante ?? (valorTotal - pagoAntes));
-                    if (restoImp <= 0) continue;
-
-                    const aplicado      = Math.min(restante, restoImp);
-                    const novoValorPago = parseFloat((pagoAntes + aplicado).toFixed(2));
-                    const novoResto     = parseFloat((restoImp  - aplicado).toFixed(2));
-                    const novoStatus    = this._calcStatus(novoValorPago, valorTotal);
-
-                    const updateData = {
-                        valorPago:       novoValorPago,
-                        valorRestante:   novoResto,
-                        statusPagamento: novoStatus,
-                    };
-
-                    // Marca primeiro pagamento se ainda não tinha
-                    if (!imp.dataPrimeiroPagamento && novoValorPago > 0) {
-                        updateData.dataPrimeiroPagamento = new Date().toISOString();
-                    }
-                    // Marca quitação se ficou pago
-                    if (novoStatus === 'pago' && !imp.dataQuitacao) {
-                        updateData.dataQuitacao = new Date().toISOString();
-                    }
-
-                    batch.update(this._doc('impressoes', imp.id), updateData);
-                    this._sheets.upsert('Impressoes', imp.id,
-                        this._sheets.formatImpressao(imp.id, { ...imp, ...updateData }));
-
-                    console.log(`[DELETE] ✅ Redistribuído R$ ${aplicado.toFixed(2)} → impressão ${imp.id} (novo status: ${novoStatus})`);
-                    restante = parseFloat((restante - aplicado).toFixed(2));
-                }
-
-                await batch.commit();
-                console.log(`[DELETE] ✅ Redistribuição concluída. Sobra: R$ ${restante.toFixed(2)}`);
-            } else {
-                console.log('[DELETE] ℹ️ Nenhuma impressão pendente para receber o crédito redistribuído.');
-            }
-        }
-
-        // 3. Se não há mais impressões para esse cliente, remove o cliente órfão
-        const restantesSnap = await getDocs(
-            query(this._col('impressoes'), where('clienteId', '==', clienteId), limit(1))
-        );
-        if (restantesSnap.empty) {
-            await deleteDoc(this._doc('clientes', clienteId));
-            this._sheets.delete('Clientes', clienteId);
-            console.log('[FIREBASE] ✅ Cliente órfão removido:', clienteId);
-        }
-
         return true;
     }
 
     async _syncClearAll() {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
-        const [impressoesSnap, clientesSnap, pagamentosSnap, relSnap] = await Promise.all([
-            getDocs(this._col('impressoes')),
-            getDocs(this._col('clientes')),
-            getDocs(this._col('pagamentos')),
-            getDocs(this._col('pagamentosImpressoes')),
-        ]);
-
-        const batch = writeBatch(this.db);
-        [impressoesSnap, clientesSnap, pagamentosSnap, relSnap]
-            .forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-        await batch.commit();
+        const snaps = await Promise.all(
+            ['impressoes', 'clientes', 'pagamentos', 'pagamentosImpressoes'].map((c) => getDocs(this._col(c))));
+        const ops = snaps.flatMap((snap) => snap.docs.map((d) => (b) => b.delete(d.ref)));
+        await this._commit(ops);   // em lotes: um batch único falha acima de 500 operações
         console.log('[FIREBASE] ✅ Todos os registros apagados');
 
         ['Clientes','Impressoes','Pagamentos','Pagamentos_Impressoes']
@@ -506,159 +460,111 @@ class FirebaseManager {
 
     // ── Pagamentos ──────────────────────────────────────────────────────────
 
-    async _syncApplyPayment({ clienteId, valorPagamento, impressoesIds = null }) {
+    // Aplica o pagamento às impressões em aberto do cliente (menor dívida primeiro).
+    // Pagamento, vínculos e impressões entram no mesmo lote: não sobra pagamento "solto".
+    async _syncApplyPayment({ clienteId, valorPagamento }) {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
-        const valorOriginal = parseFloat(valorPagamento);
-        let   restante      = valorOriginal;
+        const valor = round2(parseFloat(valorPagamento));
+        if (!Number.isFinite(valor) || valor <= 0) throw new Error('Valor de pagamento inválido');
 
-        let impressoes;
-        if (impressoesIds?.length > 0) {
-            const refs = await Promise.all(impressoesIds.map(id => getDoc(this._doc('impressoes', id))));
-            impressoes = refs.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() }));
-        } else {
-            const snap = await getDocs(
-                query(this._col('impressoes'), where('clienteId', '==', clienteId))
-            );
-            impressoes = snap.docs
-                .map(d => ({ id: d.id, ...d.data() }))
-                .filter(d => {
-                    const resto = parseFloat(d.valorRestante ?? (d.valorTotal - d.valorPago) ?? 0);
-                    return resto > 0 || parseFloat(d.valorPago || 0) < parseFloat(d.valorTotal || 0);
-                })
-                .sort((a, b) => {
-                    const restoA = parseFloat(a.valorRestante ?? a.valorTotal - a.valorPago ?? 0);
-                    const restoB = parseFloat(b.valorRestante ?? b.valorTotal - b.valorPago ?? 0);
-                    return restoA - restoB;
-                });
-        }
+        const impressoes = await this._impressoesDoCliente(clienteId);
+        const { updates, sobra } = allocate(impressoes, valor);
+        if (!updates.length) throw new Error('Cliente sem impressão em aberto.');
+        if (sobra > 0) throw new Error('O valor passa do saldo em aberto do cliente.');
 
-        if (!impressoes.length) {
-            console.warn('[PAGAMENTO] Nenhuma impressão pendente');
-            return { totalUsado: 0, totalSobrando: restante };
-        }
+        const agora  = new Date().toISOString();
+        const pagRef = doc(this._col('pagamentos'));
+        const pagDoc = {
+            clienteId, valorTotal: valor, tipoAplicacao: 'automatico',
+            observacao: 'Pagamento aplicado', dataPagamento: agora,
+        };
 
-        const pagRef = await addDoc(this._col('pagamentos'), {
-            clienteId, valorTotal: valorOriginal,
-            tipoAplicacao: impressoesIds ? 'manual' : 'automatico',
-            observacao:    'Pagamento aplicado',
-            dataPagamento: new Date().toISOString(),
-            createdAt:     serverTimestamp(),
-        });
-        this._sheets.upsert('Pagamentos', pagRef.id,
-            this._sheets.formatPagamento(pagRef.id, {
-                clienteId, valorTotal: valorOriginal,
-                tipoAplicacao: impressoesIds ? 'manual' : 'automatico',
-                observacao:    'Pagamento aplicado',
-                dataPagamento: new Date().toISOString(),
-                createdAt:     new Date().toISOString(),
-            }));
-
-        const batch    = writeBatch(this.db);
-        const detalhes = [];
-
-        for (const imp of impressoes) {
-            if (restante <= 0) break;
-
-            const valorTotal   = parseFloat(imp.valorTotal  || 0);
-            const pagoAntes    = parseFloat(imp.valorPago   || 0);
-            const restoImp     = parseFloat(imp.valorRestante ?? (valorTotal - pagoAntes));
-            if (restoImp <= 0) continue;
-
-            const aplicado      = Math.min(restante, restoImp);
-            const novoValorPago = parseFloat((pagoAntes + aplicado).toFixed(2));
-            const novoResto     = parseFloat((restoImp  - aplicado).toFixed(2));
-            const novoStatus    = this._calcStatus(novoValorPago, valorTotal);
-
-            const updateData = { valorPago: novoValorPago, valorRestante: novoResto, statusPagamento: novoStatus };
-            if (!imp.dataPrimeiroPagamento && novoValorPago > 0)
-                updateData.dataPrimeiroPagamento = new Date().toISOString();
-            if (novoStatus === 'pago')
-                updateData.dataQuitacao = new Date().toISOString();
-
-            batch.update(this._doc('impressoes', imp.id), updateData);
-
+        const ops = [(b) => b.set(pagRef, { ...pagDoc, createdAt: serverTimestamp() })];
+        const planilha = [];
+        for (const u of updates) {
+            const imp = impressoes.find((i) => i.id === u.id);
+            const { id: iid, aplicado, ...campos } = u;
+            if (!imp.dataPrimeiroPagamento) campos.dataPrimeiroPagamento = agora;
+            if (campos.statusPagamento === 'pago') campos.dataQuitacao = agora;
             const relRef = doc(this._col('pagamentosImpressoes'));
-            batch.set(relRef, { pagamentoId: pagRef.id, impressaoId: imp.id, valorAplicado: aplicado });
-
-            this._sheets.upsert('Impressoes', imp.id,
-                this._sheets.formatImpressao(imp.id, { ...imp, ...updateData }));
-            this._sheets.upsert('Pagamentos_Impressoes', relRef.id,
-                this._sheets.formatPagamentoImpressao(relRef.id,
-                    { pagamentoId: pagRef.id, impressaoId: imp.id, valorAplicado: aplicado }));
-
-            detalhes.push({ impressaoId: imp.id, valorAplicado: aplicado, novoStatus });
-            restante = parseFloat((restante - aplicado).toFixed(2));
-
-            if (novoStatus === 'parcial') break;
+            const rel = { pagamentoId: pagRef.id, impressaoId: iid, valorAplicado: aplicado };
+            ops.push((b) => b.update(this._doc('impressoes', iid), campos));
+            ops.push((b) => b.set(relRef, rel));
+            planilha.push({ iid, imp, campos, relId: relRef.id, rel });
         }
+        await this._commit(ops);
 
-        await batch.commit();
-        const totalUsado = parseFloat((valorOriginal - restante).toFixed(2));
-        console.log(`[PAGAMENTO] ✅ Usado: R$ ${totalUsado} | Sobra: R$ ${restante}`);
-        return { pagamento: { id: pagRef.id }, totalUsado, totalSobrando: restante, detalhes };
+        this._sheets.upsert('Pagamentos', pagRef.id,
+            this._sheets.formatPagamento(pagRef.id, { ...pagDoc, createdAt: agora }));
+        planilha.forEach(({ iid, imp, campos, relId, rel }) => {
+            this._sheets.upsert('Impressoes', iid, this._paraPlanilha(iid, imp, campos));
+            this._sheets.upsert('Pagamentos_Impressoes', relId, this._sheets.formatPagamentoImpressao(relId, rel));
+        });
+
+        console.log(`[PAGAMENTO] ✅ Aplicado R$ ${valor}`);
+        return {
+            pagamento: { id: pagRef.id }, totalUsado: valor, totalSobrando: 0,
+            detalhes: updates.map((u) => ({ impressaoId: u.id, valorAplicado: u.aplicado, novoStatus: u.statusPagamento })),
+        };
     }
 
+    // Remove um pagamento e refaz a distribuição dos demais NO LUGAR: os pagamentos
+    // continuam com o mesmo id e a mesma data (antes eram apagados e recriados com a data de hoje).
+    // Tudo em um lote: se falhar, nada muda.
     async _syncRemovePayment({ paymentId, clienteId }) {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
-        const todosSnap = await getDocs(
-            query(this._col('pagamentos'), where('clienteId', '==', clienteId))
-        );
-        const pagamentosRestantes = todosSnap.docs
-            .filter(d => d.id !== paymentId)
-            .map(d => ({ id: d.id, ref: d.ref, ...d.data() }))
+        const [pagSnap, impressoes] = await Promise.all([
+            getDocs(query(this._col('pagamentos'), where('clienteId', '==', clienteId))),
+            this._impressoesDoCliente(clienteId),
+        ]);
+        if (!pagSnap.docs.some((d) => d.id === paymentId)) throw new Error('Pagamento não encontrado.');
+
+        const restantes = pagSnap.docs.filter((d) => d.id !== paymentId)
+            .map((d) => ({ id: d.id, ...d.data() }))
             .sort((a, b) => new Date(a.dataPagamento || 0) - new Date(b.dataPagamento || 0));
+        const relAntigas = await this._relDocs(pagSnap.docs.map((d) => d.id));
 
-        const impSnap    = await getDocs(
-            query(this._col('impressoes'), where('clienteId', '==', clienteId))
-        );
-        const resetBatch = writeBatch(this.db);
-        impSnap.forEach(d => {
-            const total     = parseFloat(d.data().valorTotal || 0);
-            const resetData = {
-                valorPago: 0, valorRestante: total,
-                statusPagamento: 'pendente', dataPrimeiroPagamento: null, dataQuitacao: null,
-            };
-            resetBatch.update(d.ref, resetData);
-            this._sheets.upsert('Impressoes', d.id,
-                this._sheets.formatImpressao(d.id, { ...d.data(), ...resetData,
-                    dataPrimeiroPagamento: '', dataQuitacao: '' }));
-        });
-        await resetBatch.commit();
-
-        const relSnap  = await getDocs(
-            query(this._col('pagamentosImpressoes'), where('pagamentoId', '==', paymentId))
-        );
-        const delBatch = writeBatch(this.db);
-        relSnap.forEach(d => { delBatch.delete(d.ref); this._sheets.delete('Pagamentos_Impressoes', d.id); });
-        await delBatch.commit();
-
-        await deleteDoc(this._doc('pagamentos', paymentId));
-        this._sheets.delete('Pagamentos', paymentId);
-        console.log('[REMOVE] ✅ Pagamento removido');
-
-        if (pagamentosRestantes.length > 0) {
-            const valoresParaReaplicar = pagamentosRestantes.map(p => ({
-                valor: parseFloat(p.valorTotal), data: p.dataPagamento,
-            }));
-
-            for (const pag of pagamentosRestantes) {
-                const oldRel = await getDocs(
-                    query(this._col('pagamentosImpressoes'), where('pagamentoId', '==', pag.id))
-                );
-                const b = writeBatch(this.db);
-                oldRel.forEach(d => { b.delete(d.ref); this._sheets.delete('Pagamentos_Impressoes', d.id); });
-                await b.commit();
-                await deleteDoc(pag.ref);
-                this._sheets.delete('Pagamentos', pag.id);
-            }
-
-            for (const item of valoresParaReaplicar) {
-                await this._syncApplyPayment({ clienteId, valorPagamento: item.valor, impressoesIds: null });
+        // Refaz do zero em memória: impressões sem pagamento + replay dos pagamentos que ficam.
+        const estado = impressoes.map((i) => ({ ...i, valorPago: 0, primeira: '', quitacao: '' }));
+        const novasRels = [];
+        for (const pag of restantes) {
+            const { updates } = allocate(estado, pag.valorTotal);
+            for (const u of updates) {
+                const e = estado.find((x) => x.id === u.id);
+                e.valorPago = u.valorPago;
+                if (!e.primeira) e.primeira = pag.dataPagamento || '';
+                if (u.statusPagamento === 'pago') e.quitacao = pag.dataPagamento || '';
+                novasRels.push({ pagamentoId: pag.id, impressaoId: u.id, valorAplicado: u.aplicado });
             }
         }
-        console.log('[REMOVE] ✅ Remoção concluída');
+
+        const ops = [];
+        const campos = estado.map((e) => {
+            const total = round2(e.valorTotal || 0);
+            const c = {
+                valorPago: e.valorPago, valorRestante: Math.max(0, round2(total - e.valorPago)),
+                statusPagamento: statusOf({ valorTotal: total, valorPago: e.valorPago }),
+                dataPrimeiroPagamento: e.primeira, dataQuitacao: e.quitacao,
+            };
+            ops.push((b) => b.update(e.ref, c));
+            return c;
+        });
+        relAntigas.forEach((d) => ops.push((b) => b.delete(d.ref)));
+        const relNovas = novasRels.map((r) => {
+            const ref = doc(this._col('pagamentosImpressoes'));
+            ops.push((b) => b.set(ref, r));
+            return { id: ref.id, r };
+        });
+        ops.push((b) => b.delete(this._doc('pagamentos', paymentId)));
+        await this._commit(ops);
+
+        estado.forEach((e, k) => this._sheets.upsert('Impressoes', e.id, this._paraPlanilha(e.id, e, campos[k])));
+        relAntigas.forEach((d) => this._sheets.delete('Pagamentos_Impressoes', d.id));
+        relNovas.forEach(({ id, r }) => this._sheets.upsert('Pagamentos_Impressoes', id, this._sheets.formatPagamentoImpressao(id, r)));
+        this._sheets.delete('Pagamentos', paymentId);
+        console.log('[REMOVE] ✅ Pagamento removido');
         return true;
     }
 
@@ -673,22 +579,18 @@ class FirebaseManager {
         const docs = snap.docs
             .sort((a, b) => new Date(b.data().dataPagamento || 0) - new Date(a.data().dataPagamento || 0));
 
-        const pagamentos = [];
-        for (const d of docs) {
-            const pag     = { id: d.id, ...d.data() };
-            const relSnap = await getDocs(
-                query(this._col('pagamentosImpressoes'), where('pagamentoId', '==', d.id))
-            );
-            pag.pagamentos_impressoes = relSnap.docs.map(r => ({
+        const rels = await this._relDocs(docs.map((d) => d.id));   // uma consulta por 30 pagamentos, não uma por pagamento
+        return docs.map((d) => {
+            const pag = { id: d.id, ...d.data() };
+            pag.pagamentos_impressoes = rels.filter((r) => r.data().pagamentoId === d.id).map((r) => ({
                 impressao_id:   r.data().impressaoId,
                 valor_aplicado: r.data().valorAplicado,
             }));
             pag.valor_total    = pag.valorTotal;
             pag.data_pagamento = pag.dataPagamento;
             pag.cliente_id     = pag.clienteId;
-            pagamentos.push(pag);
-        }
-        return pagamentos;
+            return pag;
+        });
     }
 
     async getClientesComPagamentos() {
@@ -727,7 +629,6 @@ class FirebaseManager {
             }
 
             sheetsData = JSON.parse(text);
-            console.log('[RECOVERY] Resposta bruta do Sheets:', JSON.stringify(sheetsData));
         } catch (err) {
             throw new Error('Erro ao buscar dados do Sheets: ' + err.message);
         }
@@ -813,7 +714,7 @@ class FirebaseManager {
                 valorPago:             parseFloat(r.valorPago)                                          || 0,
                 valorRestante:         parseFloat(r.valorRestante)                                      || 0,
                 statusPagamento:       r.statusPagamento                                               || 'pendente',
-                dataImpressao:         r.dataImpressao                                                 || '',
+                dataImpressao:         r.dataImpressao                                                 || _safeDate(r.createdAt).toISOString(),
                 dataPrimeiroPagamento: r.dataPrimeiroPagamento && r.dataPrimeiroPagamento !== '' ? r.dataPrimeiroPagamento : '',
                 dataQuitacao:          r.dataQuitacao          && r.dataQuitacao          !== '' ? r.dataQuitacao          : '',
                 observacao:            r.observacao                                                    || '',
@@ -848,27 +749,6 @@ class FirebaseManager {
             pagamentos:           novos.pagamentos.length,
             pagamentosImpressoes: novos.pagamentosImpressoes.length,
         };
-    }
-
-    // ── Limpar Firebase apenas (teste) ──────────────────────────────────────
-
-    async clearFirebaseOnly() {
-        if (!this.isConfigured) throw new Error('Firebase não configurado');
-
-        const [clientesSnap, impressoesSnap, pagamentosSnap, relSnap] = await Promise.all([
-            getDocs(this._col('clientes')),
-            getDocs(this._col('impressoes')),
-            getDocs(this._col('pagamentos')),
-            getDocs(this._col('pagamentosImpressoes')),
-        ]);
-
-        const batch = writeBatch(this.db);
-        [clientesSnap, impressoesSnap, pagamentosSnap, relSnap]
-            .forEach(snap => snap.forEach(d => batch.delete(d.ref)));
-        await batch.commit();
-
-        console.log('[TEST] ✅ Firebase limpo (Sheets preservado)');
-        return true;
     }
 
 } // ← fecha FirebaseManager

@@ -8,6 +8,7 @@ export const state = {
     impressions: [],                 // lista carregada do Firestore
     prices: { 1: 0.5, 2: 1, 3: 1.5, 4: 2 },
     offsetPrice: 0.5,
+    pricesOk: true,                  // false = preços não vieram do banco (não gravar impressões)
 };
 
 const listeners = {};

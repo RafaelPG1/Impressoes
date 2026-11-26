@@ -57,7 +57,7 @@ async function applyPayment() {
     closeDialog($('dlgPayment'));
     try {
         await withLoader(async () => {
-            await store._syncApplyPayment({ clienteId, valorPagamento: valor, impressoesIds: null });
+            await store._syncApplyPayment({ clienteId, valorPagamento: valor });
             await refresh();
         }, 'Registrando pagamento…');
         noticeDialog('Pagamento registrado', noticeList([
@@ -65,7 +65,7 @@ async function applyPayment() {
         ]));
     } catch (err) {
         console.error('[PAGAMENTO] erro ao aplicar:', err);
-        notify.error('Não foi possível registrar o pagamento.');
+        notify.error(err.code || !err.message ? 'Não foi possível registrar o pagamento.' : err.message);
     }
 }
 
@@ -124,7 +124,7 @@ async function removePayment(paymentId) {
     const clienteId = $('historyCliente').value;
     const ok = await confirmDialog({
         title: 'Remover pagamento',
-        message: 'O valor volta a ficar em aberto e os outros pagamentos do cliente são reaplicados do zero. Remover?',
+        message: 'O valor volta a ficar em aberto. Os outros pagamentos do cliente continuam com a mesma data e são redistribuídos entre as impressões. Remover?',
         okText: 'Remover', danger: true,
     });
     if (!ok) return;

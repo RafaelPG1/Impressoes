@@ -99,7 +99,8 @@ function download() {
     if (!currentSrc) return;
     const a = document.createElement('a');
     a.href = currentSrc;
-    a.download = 'qrcode-pix.png';
+    const ext = (/^data:image\/(\w+)/.exec(currentSrc) || [])[1] || 'png';
+    a.download = `qrcode-pix.${ext === 'jpeg' ? 'jpg' : ext}`;
     a.click();
 }
 

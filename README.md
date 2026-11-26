@@ -28,9 +28,19 @@ Abra http://localhost:8000. No GitHub Pages: Settings > Pages > Deploy from bran
     vendor/             jsPDF e jspdf-autotable (cópia local)
     firestore.rules     regras de referência
 
+## Testes
+
+Funções puras (cálculo, status, distribuição de pagamento):
+
+    node --test tests/unit.test.mjs
+
+O fluxo completo com Firestore real não tem teste automatizado: valide manualmente após publicar.
+
 ## Firebase
 
-Config em `js/config.js` (`FIREBASE_CONFIG`). A chave web do Firebase não é segredo, mas sem login qualquer pessoa com ela acessa o banco. Para uso pessoal, o mínimo é ativar Firebase Auth e exigir `request.auth != null` nas regras. O app ainda não tem tela de login.
+Config em `js/config.js` (`FIREBASE_CONFIG`). A chave web do Firebase não é segredo, mas sem login qualquer pessoa com ela acessa o banco. Para uso pessoal, o mínimo é ativar Firebase Auth e exigir `request.auth != null` nas regras. O app ainda não tem tela de login. A URL do Apps Script também fica pública no código: quem a tiver consegue gravar e apagar linhas da planilha.
+
+Remover um pagamento refaz a distribuição a partir dos pagamentos registrados. Impressões marcadas como pagas sem um pagamento correspondente (dados antigos ou importados) voltam a ficar em aberto.
 
 Coleções: `impressoes`, `clientes`, `pagamentos`, `pagamentosImpressoes`, `precos` (docs 1 a 5; 5 é offset), `config/pix`.
 

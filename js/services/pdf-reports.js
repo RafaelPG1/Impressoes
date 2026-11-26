@@ -131,7 +131,7 @@ async function _fetchPieFromQuickChart(slices, sizePx = 300) {
     const url = 'https://quickchart.io/chart?' + params.toString();
 
     try {
-        const resp = await fetch(url);
+        const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });   // sem isso, rede lenta trava a geração do PDF
         if (!resp.ok) throw new Error('QuickChart HTTP ' + resp.status);
         const blob    = await resp.blob();
         const dataURL = await new Promise((res, rej) => {
