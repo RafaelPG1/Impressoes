@@ -1,13 +1,47 @@
+// =============================================================================
+// REGRAS FINAIS — publique depois de migrar os dados antigos (veja README).
+//
+// Modelo: "segredo no caminho". Sem Firebase Authentication o Firestore não sabe
+// QUEM está chamando; ele só enxerga o caminho. O app deriva da senha uma chave de
+// 256 bits e guarda tudo em dados/{chave}/…. Quem não sabe a chave não acha os dados
+// (não dá para listar /dados). Quem sabe a chave tem acesso total.
+// NÃO é autenticação robusta. Limites no README.
+// =============================================================================
 rules_version = '2';
-// Regras de referência. Cole no console do Firebase (Firestore > Regras).
-// ATENÇÃO: o app não tem login. Estas regras limitam as coleções usadas,
-// mas qualquer pessoa com a chave do site ainda lê e grava.
-// Para proteger de verdade, ative Firebase Auth e troque "if true" por
-// "if request.auth != null" (ver README, seção Segurança).
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{col}/{doc} {
-      allow read, write: if col in ['impressoes','clientes','pagamentos','pagamentosImpressoes','precos','config'];
+
+    function hex64(s) { return s.matches('^[0-9a-f]{64}$'); }
+
+    // Dados do usuário: só com a chave correta no caminho. Listar /dados é negado.
+    match /dados/{chave}/{caminho=**} {
+      allow read, write: if hex64(chave);
+    }
+
+    // Sal público do usuário (necessário para derivar a chave). Leitura só por id exato.
+    // Criação única, junto com config/instalado, no mesmo lote.
+    match /acessos/{uid} {
+      allow get: if hex64(uid);
+      allow list: if false;
+      allow create: if hex64(uid)
+                    && !exists(/databases/$(database)/documents/config/instalado)
+                    && existsAfter(/databases/$(database)/documents/config/instalado)
+                    && getAfter(/databases/$(database)/documents/config/instalado).data.uid == uid;
+      allow update, delete: if false;
+    }
+
+    // Trava de cadastro único: só nasce se o acesso correspondente nascer no mesmo lote.
+    match /config/instalado {
+      allow get: if true;
+      allow list: if false;
+      allow create: if !exists(/databases/$(database)/documents/config/instalado)
+                    && existsAfter(/databases/$(database)/documents/acessos/$(request.resource.data.uid));
+      allow update, delete: if false;
+    }
+
+    // Tudo o mais (inclusive as coleções antigas na raiz): negado.
+    match /{outros=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/views.css">
     <link rel="stylesheet" href="css/dialogs.css">
+    <link rel="stylesheet" href="css/auth.css">
 
     <!-- Bibliotecas de PDF (locais, sem CDN) -->
     <script src="vendor/jspdf.umd.min.js" defer></script>
@@ -22,7 +23,31 @@
 <body>
 <a class="skip-link" href="#main">Ir para o conteúdo</a>
 
-<div class="app">
+<!-- ============ Login (Firestore apenas; veja README → Segurança) ============ -->
+<div class="auth" id="authScreen" hidden>
+    <form class="auth-card" id="authForm" autocomplete="on" novalidate>
+        <div class="auth-brand"><strong>IMPRESSÕES</strong><span id="authSub">Entre para continuar</span></div>
+        <div class="field">
+            <label for="authUser">Usuário</label>
+            <input type="text" id="authUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40" required>
+        </div>
+        <div class="field">
+            <label for="authPass">Senha</label>
+            <input type="password" id="authPass" name="password" autocomplete="current-password" maxlength="200" required>
+        </div>
+        <div class="field" id="authPass2Field" hidden>
+            <label for="authPass2">Repita a senha</label>
+            <input type="password" id="authPass2" autocomplete="new-password" maxlength="200">
+            <span class="field-hint">Mínimo de 10 caracteres. Não há recuperação de senha: se perder, os dados ficam inacessíveis.</span>
+        </div>
+        <label class="auth-check"><input type="checkbox" id="authKeep"> Manter conectado neste aparelho (30 dias)</label>
+        <p class="field-error" id="authError" role="alert"></p>
+        <button type="submit" class="btn btn-primary" id="authSubmit">Entrar</button>
+        <button type="button" class="auth-link" id="authToggle" hidden>Primeiro acesso? Criar usuário</button>
+    </form>
+</div>
+
+<div class="app" id="app" hidden>
 
     <!-- ============ Navegação lateral (desktop) / barra inferior (celular) ============ -->
     <aside class="sidebar">
@@ -40,6 +65,9 @@
             <div class="nav-sep" role="separator"></div>
             <button type="button" class="nav-item" id="openPdfBtn" data-icon="file-text"><span>Relatórios em PDF</span></button>
             <button type="button" class="nav-item" id="openPixBtn" data-icon="qr-code"><span>QR Code Pix</span></button>
+            <div class="nav-sep" role="separator"></div>
+            <button type="button" class="nav-item" id="tokenBtn" data-icon="key-round"><span>Token do backup</span></button>
+            <button type="button" class="nav-item" id="logoutBtn" data-icon="log-out"><span>Sair</span></button>
         </nav>
 
         <div class="sidebar-foot">
@@ -69,6 +97,7 @@
             <div class="topbar-tools">
                 <button type="button" class="icon-btn mobile-only" id="openPdfBtnMobile" data-icon="file-text" aria-label="Relatórios em PDF"></button>
                 <button type="button" class="icon-btn mobile-only" id="openPixBtnMobile" data-icon="qr-code" aria-label="QR Code Pix"></button>
+                <button type="button" class="icon-btn mobile-only" id="logoutBtnMobile" data-icon="log-out" aria-label="Sair"></button>
                 <time class="today" id="today"><span data-icon="calendar"></span><span id="todayText"></span></time>
                 <span class="avatar" data-icon="user" data-icon-size="22" aria-hidden="true"></span>
             </div>

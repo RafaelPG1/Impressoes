@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { store } from './services/firestore.js';
-import { SHEETS_URL } from './config.js';
+import { requireLogin, initLogout, initTokenDialog, oferecerMigracao } from './features/auth-ui.js';
 import { refresh } from './actions.js';
 import { notify } from './ui/feedback.js';
 import { hydrateIcons } from './ui/icons-hydrate.js';
@@ -31,13 +31,14 @@ function showToday() {
     $('todayText').textContent = new Date().toLocaleDateString('pt-BR');
 }
 
-/** Drive = backup no Google Sheets. GET no Apps Script: responde JSON quando o deploy está ativo. */
+/** Drive = backup no Sheets. ping: responde sem expor dados e diz se o token confere. */
 async function checkDrive() {
     try {
-        const resp = await fetch(SHEETS_URL, { signal: AbortSignal.timeout(8000) });
-        await resp.json();
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        setConnection('ok', 'Conectado', 'driveStatus');
+        const r = await store._sheets.get({ action: 'ping' }, 8000);
+        if (r?.auth === 'ok')                    setConnection('ok', 'Conectado', 'driveStatus');
+        else if (r?.auth === 'nao-configurado')  setConnection('error', 'Token não configurado', 'driveStatus');
+        else if (r?.auth === 'invalido')         setConnection('error', 'Token inválido', 'driveStatus');
+        else throw new Error('Apps Script desatualizado (sem ping)');
     } catch (err) {
         console.warn('[DRIVE] sem conexão:', err.message);
         setConnection('error', 'Sem conexão', 'driveStatus');
@@ -45,9 +46,12 @@ async function checkDrive() {
 }
 
 async function start() {
-    checkDrive();
     hydrateIcons();
     showToday();
+    initLogout();
+    initTokenDialog();
+    await requireLogin();   // nada abaixo roda sem sessão
+    checkDrive();
 
     initRouter();
     initPrices();
@@ -67,6 +71,7 @@ async function start() {
         return;
     }
 
+    await oferecerMigracao();
     initForm();          // precisa dos preços para o total, então roda depois de iniciar os módulos
     try {
         await loadPrices();

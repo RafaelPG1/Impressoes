@@ -1,0 +1,43 @@
+// =============================================================================
+// REGRAS DE TRANSIÇÃO — use só durante a migração dos dados antigos.
+// Igual às finais, MAIS leitura/escrita nas coleções antigas da raiz (que já
+// estavam abertas a qualquer pessoa na versão sem login). Depois de migrar,
+// troque por firestore.rules (finais).
+// =============================================================================
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function hex64(s) { return s.matches('^[0-9a-f]{64}$'); }
+
+    match /dados/{chave}/{caminho=**} {
+      allow read, write: if hex64(chave);
+    }
+
+    match /acessos/{uid} {
+      allow get: if hex64(uid);
+      allow list: if false;
+      allow create: if hex64(uid)
+                    && !exists(/databases/$(database)/documents/config/instalado)
+                    && existsAfter(/databases/$(database)/documents/config/instalado)
+                    && getAfter(/databases/$(database)/documents/config/instalado).data.uid == uid;
+      allow update, delete: if false;
+    }
+
+    match /config/instalado {
+      allow get: if true;
+      allow list: if false;
+      allow create: if !exists(/databases/$(database)/documents/config/instalado)
+                    && existsAfter(/databases/$(database)/documents/acessos/$(request.resource.data.uid));
+      allow update, delete: if false;
+    }
+
+    // Antigo: coleções da raiz
+    match /{col}/{doc=**} {
+      allow read, write: if col in ['impressoes', 'clientes', 'pagamentos', 'pagamentosImpressoes', 'precos'];
+    }
+    match /config/pix {
+      allow read, write: if true;
+    }
+  }
+}

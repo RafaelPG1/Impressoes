@@ -26,6 +26,8 @@ async function run() {
         }, 'Buscando na planilha…');
 
         const total = geral.total + adicionar.total;
+        if (adicionar.falhas) notify.warning(`${adicionar.falhas} linha(s) da aba "Adicionar" não foram importadas (veja o console). Ficam na planilha.`, null, 8000);
+        if (adicionar.naoLimpas) notify.warning(`${adicionar.naoLimpas} linha(s) importadas continuam na aba "Adicionar"; a próxima recuperação só as limpa, sem duplicar.`, null, 8000);
         if (total === 0) {
             noticeDialog('Recuperação concluída', '<p>O banco já está atualizado. Nenhum dado novo na planilha.</p>');
             return;

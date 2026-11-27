@@ -10,7 +10,7 @@ import {
     serverTimestamp, Timestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-import { FIREBASE_CONFIG, SHEETS_URL, DEFAULT_PRICES } from '../config.js';
+import { FIREBASE_CONFIG, DEFAULT_PRICES } from '../config.js';
 import { SheetsSync } from './sheets.js';
 import { allocate } from '../utils/allocate.js';
 import { round2, statusOf } from '../utils/format.js';
@@ -26,6 +26,7 @@ class FirebaseManager {
         this.app          = null;
         this.db           = null;
         this.isConfigured = false;
+        this.chave        = null;
         this._sheets      = new SheetsSync();
         this._init();
     }
@@ -47,8 +48,18 @@ class FirebaseManager {
 
     // ── Helpers internos ────────────────────────────────────────────────────
 
-    _col(name)    { return collection(this.db, name); }
-    _doc(col, id) { return doc(this.db, col, id); }
+    /** Define a chave de dados da sessão (null = sem login). Tudo vive em dados/{chave}/… */
+    setChave(chave, token = null) {
+        this.chave = chave;
+        this._sheets.token = token;
+    }
+
+    _base() {
+        if (!this.chave) throw new Error('Sessão não iniciada.');
+        return ['dados', this.chave];
+    }
+    _col(name)    { return collection(this.db, ...this._base(), name); }
+    _doc(col, id) { return doc(this.db, ...this._base(), col, id); }
 
     _toDate(value) {
         if (!value)                     return new Date();
@@ -184,11 +195,7 @@ class FirebaseManager {
 
         let sheetsData;
         try {
-            const resp = await fetch(`${SHEETS_URL}?action=getAdicionar`, {
-                method:   'GET',
-                redirect: 'follow',
-            });
-            sheetsData = await resp.json();
+            sheetsData = await this._sheets.get({ action: 'getAdicionar' });
         } catch (err) {
             throw new Error('Erro ao buscar aba Adicionar: ' + err.message);
         }
@@ -215,9 +222,15 @@ class FirebaseManager {
         const prices = await this.loadPrices();   // uma vez só (antes era uma leitura por registro)
         const num    = (v) => Number(v) || 0;
 
+        // Idempotente: o id do documento vem do uid da linha (adc_<uid>). Reimportar a mesma
+        // linha sobrescreve nada e cria nada. A linha só sai da planilha DEPOIS de gravada.
         let importados = 0;
+        const confirmar = [];
         for (const raw of registros) {
             try {
+                if (!/^[0-9a-f-]{36}$/.test(raw.uid || '')) throw new Error('linha sem uid (atualize o Apps Script)');
+                const docId = 'adc_' + raw.uid;
+                if ((await getDoc(this._doc('impressoes', docId))).exists()) { confirmar.push(raw.uid); continue; }
                 const reg = { ...raw, folhas: num(raw.folhas), offset: num(raw.offset), canva: num(raw.canva), trabalho: num(raw.trabalho) };
                 const tipoNum     = TIPO_MAP[reg.tipo] || 0;
                 const precoTipo   = prices?.[tipoNum] || 0;
@@ -253,20 +266,34 @@ class FirebaseManager {
                     valorPago:       0,
                     statusPagamento: 'pendente',
                     dataHora,
-                });
+                }, docId);
                 importados++;
+                confirmar.push(raw.uid);
             } catch (err) {
                 console.error(`[ADICIONAR] ❌ Erro ao importar "${raw.nome}":`, err.message);
             }
         }
 
-        console.log(`[ADICIONAR] ✅ ${importados} impressão(ões) importada(s).`);
-        return { total: importados };
+        let naoLimpas = 0;
+        for (let i = 0; i < confirmar.length; i += 25) {
+            const lote = confirmar.slice(i, i + 25);
+            try {
+                const r = await this._sheets.get({ action: 'confirmarAdicionar', uids: lote.join(',') });
+                if (!r?.success) throw new Error(r?.error || 'resposta inválida');
+            } catch (err) {
+                // Sem problema: as linhas ficam na planilha e a próxima recuperação só as confirma.
+                console.warn('[ADICIONAR] não consegui limpar linhas da planilha:', err.message);
+                naoLimpas += lote.length;
+            }
+        }
+        const falhas = registros.length - confirmar.length;
+        console.log(`[ADICIONAR] ✅ ${importados} importada(s); ${falhas} com erro; ${naoLimpas} sem limpar na planilha.`);
+        return { total: importados, falhas, naoLimpas };
     }
 
     // ── Operações internas ───────────────────────────────────────────────────
 
-    async _syncAddImpression(impressionData) {
+    async _syncAddImpression(impressionData, docId = null) {
         if (!this.isConfigured) throw new Error('Firebase não configurado');
 
         const valorTotal      = round2(parseFloat(impressionData.valorTotal || 0));
@@ -293,7 +320,9 @@ class FirebaseManager {
             data.tipoImpressao = impressionData.tipoImpressao;
         }
 
-        const ref = await addDoc(this._col('impressoes'), data);
+        let ref;
+        if (docId) { ref = this._doc('impressoes', docId); await setDoc(ref, data); }   // id fixo → idempotente
+        else       { ref = await addDoc(this._col('impressoes'), data); }
         this._sheets.upsert('Impressoes', ref.id,
             this._sheets.formatImpressao(ref.id, { ...data, createdAt: new Date().toISOString() }));
         console.log('[FIREBASE] ✅ Impressão adicionada:', ref.id);
@@ -599,6 +628,36 @@ class FirebaseManager {
         return [...new Set(snap.docs.map(d => d.data().clienteId))].map(id => ({ cliente_id: id }));
     }
 
+    // ── Migração única: coleções da raiz (versão antiga, sem login) → dados/{chave} ──
+
+    /** true se ainda há dados na raiz E as regras ainda permitem ler (regras de transição). */
+    async temDadosNaRaiz() {
+        try {
+            const snap = await getDocs(query(collection(this.db, 'impressoes'), limit(1)));
+            return !snap.empty;
+        } catch { return false; }   // permission-denied = regras finais já publicadas
+    }
+
+    /** Copia sem apagar a origem e sem sobrescrever o que já existe no destino (pode repetir). */
+    async migrarDaRaiz() {
+        const cols = ['clientes', 'impressoes', 'pagamentos', 'pagamentosImpressoes', 'precos'];
+        const out = {};
+        for (const nome of cols) {
+            const [orig, dest] = await Promise.all([
+                getDocs(collection(this.db, nome)), getDocs(this._col(nome))]);
+            const ja = new Set(dest.docs.map((d) => d.id));
+            const novos = orig.docs.filter((d) => !ja.has(d.id));
+            await this._commit(novos.map((d) => (b) => b.set(this._doc(nome, d.id), d.data())));
+            out[nome] = novos.length;
+        }
+        const pixOrig = await getDoc(doc(this.db, 'config', 'pix'));
+        if (pixOrig.exists() && !(await getDoc(this._doc('config', 'pix'))).exists()) {
+            await setDoc(this._doc('config', 'pix'), pixOrig.data());
+            out.pix = 1;
+        }
+        return out;
+    }
+
     // ── Recuperação Sheets → Firebase (merge seguro) ─────────────────────────
 
     async recoverFromSheets() {
@@ -618,17 +677,7 @@ class FirebaseManager {
 
         let sheetsData;
         try {
-            const resp = await fetch(`${SHEETS_URL}?action=getAll`, {
-                method:   'GET',
-                redirect: 'follow',
-            });
-            const text = await resp.text();
-
-            if (text.includes('"message":"Apps Script ativo!"') || !text.includes('"data"')) {
-                throw new Error('Deploy do Apps Script desatualizado. Acesse: ' + SHEETS_URL + '?action=getAll');
-            }
-
-            sheetsData = JSON.parse(text);
+            sheetsData = await this._sheets.get({ action: 'getAll' }, 60000);
         } catch (err) {
             throw new Error('Erro ao buscar dados do Sheets: ' + err.message);
         }
@@ -661,11 +710,19 @@ class FirebaseManager {
             pagamentosImpressoes: new Set(relSnap.docs.map(d => d.id)),
         };
 
+        // Só entra o que tem id válido, ainda não existe no banco e não repete dentro da própria planilha.
+        const novosDe = (lista, existentesSet) => {
+            const vistos = new Map();
+            for (const r of lista) {
+                if (r && /^[A-Za-z0-9_-]{1,64}$/.test(r.id || '') && !existentesSet.has(r.id) && !vistos.has(r.id)) vistos.set(r.id, r);
+            }
+            return [...vistos.values()];
+        };
         const novos = {
-            clientes:             clientes.filter(r => r.id && !existentes.clientes.has(r.id)),
-            impressoes:           impressoes.filter(r => r.id && !existentes.impressoes.has(r.id)),
-            pagamentos:           pagamentos.filter(r => r.id && !existentes.pagamentos.has(r.id)),
-            pagamentosImpressoes: pagamentosImpressoes.filter(r => r.id && !existentes.pagamentosImpressoes.has(r.id)),
+            clientes:             novosDe(clientes,             existentes.clientes),
+            impressoes:           novosDe(impressoes,           existentes.impressoes),
+            pagamentos:           novosDe(pagamentos,           existentes.pagamentos),
+            pagamentosImpressoes: novosDe(pagamentosImpressoes, existentes.pagamentosImpressoes),
         };
 
         console.log('[RECOVERY] Novos registros encontrados:', {
@@ -762,10 +819,10 @@ export const store = new FirebaseManager();
 // QR Code do Pix (documento config/pix)
 export const pixStore = {
     async get() {
-        const snap = await getDoc(doc(store.db, 'config', 'pix'));
+        const snap = await getDoc(store._doc('config', 'pix'));
         return snap.exists() ? (snap.data().qrBase64 || null) : null;
     },
     set(dataUrl) {
-        return setDoc(doc(store.db, 'config', 'pix'), { qrBase64: dataUrl }, { merge: true });
+        return setDoc(store._doc('config', 'pix'), { qrBase64: dataUrl }, { merge: true });
     },
 };

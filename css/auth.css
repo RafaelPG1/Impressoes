@@ -1,0 +1,24 @@
+/* ==========================================================================
+   auth.css — tela de login
+   ========================================================================== */
+.auth { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: var(--s-4); background: var(--ink); overflow-y: auto; }
+.auth[hidden], .app[hidden] { display: none; }
+.auth-card {
+    width: min(26rem, 100%);
+    display: flex; flex-direction: column; gap: var(--s-4);
+    padding: var(--s-6);
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-lg);
+}
+.auth-brand { display: flex; flex-direction: column; gap: var(--s-1); }
+.auth-brand strong { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-size: 1.5rem; letter-spacing: 0.04em; }
+.auth-brand span { color: var(--text-2); font-size: var(--fs-sm); }
+.auth-check { display: flex; align-items: center; gap: var(--s-2); font-size: var(--fs-sm); color: var(--text-2); }
+.auth-link { background: none; border: 0; color: var(--cyan-text); font: inherit; font-size: var(--fs-sm); cursor: pointer; padding: var(--s-2); text-decoration: underline; }
+input[type='password'] {
+    width: 100%; min-height: 2.75rem; padding: 0 var(--s-3);
+    background: var(--field); border: 1px solid var(--line-2); border-radius: var(--r-md);
+}
+input[type='password']:focus-visible { outline: none; border-color: var(--cyan-text); box-shadow: 0 0 0 3px rgb(77 166 255 / 0.28); }
+.token-box { word-break: break-all; font-family: ui-monospace, Consolas, monospace; font-size: var(--fs-sm); padding: var(--s-3); background: var(--field); border: 1px solid var(--line-2); border-radius: var(--r-md); user-select: all; }
