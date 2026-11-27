@@ -15,6 +15,9 @@ const $ = (id) => document.getElementById(id);
 
 const PAGE_SIZE = 10;
 let page = 1;
+let grouped = false;
+try { grouped = localStorage.getItem('impressoes.agrupar') === '1'; } catch { /* sem storage: modo normal */ }
+const aberto = new Set();   // grupos expandidos (só nesta sessão)
 
 const filterIds = ['filterCliente', 'filterStatus', 'filterTipo', 'filterDataInicio', 'filterDataFim'];
 
@@ -85,6 +88,37 @@ function renderClientOptions() {
     $('clientesList').innerHTML = nomes.map((n) => `<option value="${esc(n)}"></option>`).join('');
 }
 
+const groupKey = (i) => i.clienteId || ('n:' + i.cliente);
+
+function groupRow(g) {
+    const total = g.items.reduce((t, i) => t + (Number(i.valorTotal) || 0), 0);
+    const pago  = g.items.reduce((t, i) => t + (Number(i.valorPago) || 0), 0);
+    const resta = Math.max(0, Math.round((total - pago) * 100) / 100);
+    const status = resta <= 0 ? 'pago' : pago > 0 ? 'parcial' : 'pendente';
+    const open = aberto.has(g.key);
+    const ultima = g.items[0];   // lista já vem da mais recente para a mais antiga
+    return `
+        <tr class="group-row" data-group="${esc(g.key)}">
+            <td data-label="Cliente">
+                <div class="cell-main">${esc(g.nome)}</div>
+                <div class="cell-sub">Última: ${esc(fmtDateTime(ultima.dataHora))}</div>
+            </td>
+            <td data-label="Serviço">
+                <div class="cell-main">${g.items.length} compra${g.items.length > 1 ? 's' : ''}</div>
+                <div class="cell-sub">${open ? 'Clique para recolher' : 'Clique para ver as compras'}</div>
+            </td>
+            <td class="col-num" data-label="Valores">
+                <div class="money-total">${money(total)}</div>
+                <div class="money-sub">Pago ${money(pago)}</div>
+                <div class="money-sub ${resta > 0 ? 'money-open' : ''}">Resta ${money(resta)}</div>
+            </td>
+            <td data-label="Status"><span class="chip chip-${status}">${STATUS_LABEL[status]}</span></td>
+            <td><div class="cell-actions">
+                <button type="button" class="icon-btn" data-action="toggle" aria-expanded="${open}" aria-label="${open ? 'Recolher' : 'Ver'} compras de ${esc(g.nome)}">${icon(open ? 'chevron-down' : 'chevron-right', 18)}</button>
+            </div></td>
+        </tr>${open ? g.items.map((i) => row(i).replace('<tr ', '<tr class="sub-row" ')).join('') : ''}`;
+}
+
 function row(imp) {
     const status = statusOf(imp);
     const total = Number(imp.valorTotal) || 0;
@@ -137,15 +171,26 @@ export function renderTable() {
         ? (hasFilter ? `${list.length} de ${all.length}` : `${all.length} registro${all.length > 1 ? 's' : ''}`)
         : '';
 
-    const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    let units = list;
+    if (grouped) {
+        const map = new Map();
+        for (const i of list) {
+            const k = groupKey(i);
+            if (!map.has(k)) map.set(k, { key: k, nome: i.cliente, items: [] });
+            map.get(k).items.push(i);
+        }
+        units = [...map.values()];   // ordem = a do 1º (mais recente) de cada cliente
+    }
+    const noun = grouped ? 'cliente' : 'registro';
+    const pages = Math.max(1, Math.ceil(units.length / PAGE_SIZE));
     page = Math.min(page, pages);
     const from = (page - 1) * PAGE_SIZE;
-    const shown = list.slice(from, from + PAGE_SIZE);
+    const shown = units.slice(from, from + PAGE_SIZE);
 
-    $('pagerInfo').textContent = !list.length ? ''
-        : list.length <= PAGE_SIZE
-            ? `Mostrando ${list.length} de ${list.length} registro${list.length > 1 ? 's' : ''}`
-            : `Mostrando ${from + 1}–${from + shown.length} de ${list.length} registros`;
+    $('pagerInfo').textContent = !units.length ? ''
+        : units.length <= PAGE_SIZE
+            ? `Mostrando ${units.length} de ${units.length} ${noun}${units.length > 1 ? 's' : ''}`
+            : `Mostrando ${from + 1}–${from + shown.length} de ${units.length} ${noun}s`;
     $('pager').hidden = !list.length;
     $('pageNow').textContent = String(page);
     $('pagePrev').disabled = page <= 1;
@@ -161,7 +206,7 @@ export function renderTable() {
         </td></tr>`;
         return;
     }
-    body.innerHTML = shown.map(row).join('');
+    body.innerHTML = shown.map(grouped ? groupRow : row).join('');
 }
 
 export function renderRecords() {
@@ -178,10 +223,25 @@ export function initRecords() {
         renderTable();
     });
     $('addManualBtn').addEventListener('click', openAdd);
+    const gb = $('groupBtn');
+    const syncGroupBtn = () => { gb.setAttribute('aria-pressed', String(grouped)); gb.classList.toggle('is-active', grouped); };
+    syncGroupBtn();
+    gb.addEventListener('click', () => {
+        grouped = !grouped; page = 1; syncGroupBtn();
+        try { localStorage.setItem('impressoes.agrupar', grouped ? '1' : '0'); } catch { /* ok */ }
+        renderTable();
+    });
     $('pagePrev').addEventListener('click', () => { page--; renderTable(); });
     $('pageNext').addEventListener('click', () => { page++; renderTable(); });
 
     $('impressoesTableBody').addEventListener('click', (e) => {
+        const gr = e.target.closest('tr.group-row');
+        if (gr && !e.target.closest('[data-action]:not([data-action="toggle"])')) {   // clicar na linha toda também abre/fecha
+            const k = gr.dataset.group;
+            aberto.has(k) ? aberto.delete(k) : aberto.add(k);
+            renderTable();
+            return;
+        }
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         const id = btn.closest('tr').dataset.id;

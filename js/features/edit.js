@@ -1,5 +1,5 @@
 // ============================================================================
-// edit.js — diálogos "Valor avulso" (nova) e "Editar impressão"
+// edit.js — diálogos "Valor manual" (nova) e "Editar impressão"
 // ============================================================================
 
 import { state, on } from '../state.js';
@@ -13,7 +13,7 @@ import {
 const $ = (id) => document.getElementById(id);
 const HAS_LETTER = /[a-zA-ZÀ-ÿ]/;
 
-// ── Valor avulso ─────────────────────────────────────────────────────────────
+// ── Valor manual ─────────────────────────────────────────────────────────────
 
 export function openAdd() {
     $('addForm').reset();
@@ -143,7 +143,7 @@ export function initEdit() {
     $('editForm').addEventListener('submit', submitEdit);
     $('editForm').addEventListener('input', renderEditTotal);
     $('editForm').addEventListener('change', renderEditTotal);
-    // Mexer no valor avulso zera os campos automáticos (mesmo comportamento anterior).
+    // Mexer no valor total manual zera os campos automáticos (mesmo comportamento anterior).
     ed.manual.addEventListener('focus', () => {
         if (!isManual) return;
         ed.normais.value = 0; ed.offset.value = 0; ed.canva.value = '0.00'; ed.trabalho.value = '0.00'; ed.tipo.value = '';

@@ -15,7 +15,7 @@ import { initEdit } from './features/edit.js';
 import { initClients } from './features/clients.js';
 import { initPayments } from './features/payments.js';
 import { initPix } from './features/pix.js';
-import { initPdf } from './features/pdf-dialog.js';
+import { initPdf } from './features/pdf-view.js';
 import { initRecovery } from './features/recovery.js';
 import { confirmClearAll } from './actions.js';
 

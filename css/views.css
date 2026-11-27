@@ -306,3 +306,11 @@
     .records-panel .data-table td:first-child, .records-panel .data-table th:first-child { padding-left: var(--s-4); }
     .filters { padding: var(--s-4); gap: var(--s-2); }
 }
+
+/* Registros: modo agrupado por cliente */
+.panel-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); justify-content: flex-end; }
+#groupBtn.is-active { border-color: var(--cyan-text); color: var(--cyan-text); }
+.group-row { cursor: pointer; }
+.group-row:hover { background: rgb(255 255 255 / 0.03); }
+.sub-row > td:first-child { padding-left: var(--s-6); box-shadow: inset 3px 0 0 var(--line-2); }
+.sub-row { background: rgb(255 255 255 / 0.02); }

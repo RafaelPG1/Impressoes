@@ -1,5 +1,5 @@
 // ============================================================================
-// router.js — navegação por hash (#/impressoes, #/clientes, #/ajustes)
+// router.js — navegação por hash (#/impressoes, #/clientes, #/relatorios, #/ajustes)
 // ============================================================================
 
 import { icon } from './ui/icons.js';
@@ -7,6 +7,7 @@ import { icon } from './ui/icons.js';
 const VIEWS = {
     impressoes: { title: 'Impressões',     icon: 'printer', sub: 'Registre, acompanhe e gerencie suas impressões' },
     clientes:   { title: 'Clientes',       icon: 'users',   sub: 'Gerencie seus clientes e histórico de pagamentos' },
+    relatorios: { title: 'Relatórios em PDF', icon: 'file-text', sub: 'Gere relatórios e exporte seus dados em PDF' },
     ajustes:    { title: 'Preços e dados', icon: 'tag',     sub: 'Configure os preços dos serviços e gerencie suas informações' },
 };
 const DEFAULT = 'impressoes';

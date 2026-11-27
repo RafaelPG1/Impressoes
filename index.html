@@ -63,7 +63,7 @@
             <a class="nav-item" href="#/clientes"   data-view="clientes"   data-icon="users"><span>Clientes</span></a>
             <a class="nav-item" href="#/ajustes"    data-view="ajustes"    data-icon="tag"><span>Preços e dados</span></a>
             <div class="nav-sep" role="separator"></div>
-            <button type="button" class="nav-item" id="openPdfBtn" data-icon="file-text"><span>Relatórios em PDF</span></button>
+            <a class="nav-item" href="#/relatorios" data-view="relatorios" data-icon="file-text"><span>Relatórios em PDF</span></a>
             <button type="button" class="nav-item" id="openPixBtn" data-icon="qr-code"><span>QR Code Pix</span></button>
             <div class="nav-sep" role="separator"></div>
             <button type="button" class="nav-item" id="tokenBtn" data-icon="key-round"><span>Token do backup</span></button>
@@ -95,7 +95,6 @@
                 <p id="viewSub"></p>
             </div>
             <div class="topbar-tools">
-                <button type="button" class="icon-btn mobile-only" id="openPdfBtnMobile" data-icon="file-text" aria-label="Relatórios em PDF"></button>
                 <button type="button" class="icon-btn mobile-only" id="openPixBtnMobile" data-icon="qr-code" aria-label="QR Code Pix"></button>
                 <button type="button" class="icon-btn mobile-only" id="logoutBtnMobile" data-icon="log-out" aria-label="Sair"></button>
                 <time class="today" id="today"><span data-icon="calendar"></span><span id="todayText"></span></time>
@@ -186,7 +185,10 @@
                                 <h2 id="recordsTitle">Registros</h2>
                                 <span class="count" id="recordsCount"></span>
                             </div>
-                            <button type="button" class="btn btn-secondary btn-sm" id="addManualBtn" data-icon="circle-dollar-sign">Valor avulso</button>
+                            <div class="panel-actions">
+                                <button type="button" class="btn btn-secondary btn-sm" id="groupBtn" data-icon="users" aria-pressed="false">Agrupar por cliente</button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="addManualBtn" data-icon="circle-dollar-sign">Valor manual</button>
+                            </div>
                         </header>
 
                         <form class="filters" id="filters" role="search" aria-label="Filtrar registros">
@@ -203,7 +205,7 @@
                                 <option value="2">Xerox colorido</option>
                                 <option value="3">Digital P&amp;B</option>
                                 <option value="4">Digital colorido</option>
-                                <option value="0">Avulso / desconhecido</option>
+                                <option value="0">Valor manual / desconhecido</option>
                             </select>
                             <div class="date-range">
                                 <span class="tile tile-sm" data-icon="calendar"></span>
@@ -261,6 +263,42 @@
                             </thead>
                             <tbody id="clientesTableBody"></tbody>
                         </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- ======================= RELATÓRIOS EM PDF ======================= -->
+            <section class="view" id="view-relatorios" aria-labelledby="viewTitle" hidden>
+                <section class="panel" id="pdfPanel">
+                    <div class="pdf-layout" id="pdfBuilder">
+            <fieldset class="pdf-types">
+                <legend class="sr-only">Tipo de relatório</legend>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="completo" checked><span class="pdf-type-ico" data-icon="users" data-icon-size="24"></span><span class="pdf-type-text"><strong>Relatório completo</strong><small>Totais, gráficos e tabela por cliente</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="resumo"><span class="pdf-type-ico" data-icon="user" data-icon-size="24"></span><span class="pdf-type-text"><strong>Resumo por cliente</strong><small>Financeiro consolidado</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="cliente"><span class="pdf-type-ico" data-icon="printer" data-icon-size="24"></span><span class="pdf-type-text"><strong>Por cliente</strong><small>Todas as impressões de uma pessoa</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="periodo"><span class="pdf-type-ico" data-icon="calendar" data-icon-size="24"></span><span class="pdf-type-text"><strong>Por período</strong><small>Filtrado por data</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+                <label class="pdf-type"><input type="radio" name="pdfTipo" value="unica"><span class="pdf-type-ico" data-icon="shield-check" data-icon-size="24"></span><span class="pdf-type-text"><strong>Comprovante</strong><small>Uma impressão específica</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
+            </fieldset>
+            <div class="pdf-config">
+                <div class="pdf-head"><span class="head-ico" data-icon="chart-column" data-icon-size="30"></span><div><h3 id="pdfTypeTitle">Relatório completo</h3><p class="panel-sub" id="pdfTypeSub"></p></div></div>
+                <div id="pdfConfigPanel" class="pdf-fields"></div>
+                <div id="pdfPreviewBox" class="pdf-preview" aria-live="polite"></div>
+            </div>
+        </div>
+        <div class="pdf-result" id="pdfResult" hidden>
+            <div class="pdf-result-icon" aria-hidden="true"></div>
+            <h3>PDF pronto</h3>
+            <p class="muted" id="pdfActionFilename"></p>
+            <div class="pdf-result-actions">
+                <button type="button" class="btn btn-primary" id="pdfActionView" data-icon="eye">Visualizar</button>
+                <button type="button" class="btn btn-secondary" id="pdfActionDownload" data-icon="download">Baixar</button>
+            </div>
+        </div>
+                    <div class="pdf-actions" id="pdfFoot">
+                        <button type="button" class="btn btn-primary btn-lg" id="pdfGenerateBtn" data-icon="file-text">Gerar PDF</button>
+                    </div>
+                    <div class="pdf-actions" id="pdfResultFoot" hidden>
+                        <button type="button" class="btn btn-secondary" id="pdfBackBtn">Novo relatório</button>
                     </div>
                 </section>
             </section>
@@ -333,6 +371,7 @@
     <nav class="tabbar" aria-label="Seções">
         <a class="tab" href="#/impressoes" data-view="impressoes" data-icon="printer"><span>Impressões</span></a>
         <a class="tab" href="#/clientes"   data-view="clientes"   data-icon="users"><span>Clientes</span></a>
+        <a class="tab" href="#/relatorios" data-view="relatorios" data-icon="file-text"><span>PDF</span></a>
         <a class="tab" href="#/ajustes"    data-view="ajustes"    data-icon="tag"><span>Preços</span></a>
     </nav>
 </div>
@@ -395,9 +434,9 @@
 
 <dialog class="dlg" id="dlgAdd" aria-labelledby="addTitle">
     <form class="dlg-form" id="addForm" novalidate>
-        <header class="dlg-head"><h2 id="addTitle">Valor avulso</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <header class="dlg-head"><h2 id="addTitle">Valor manual</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
         <div class="dlg-body">
-            <p class="muted">Registre uma venda só com o valor total, sem detalhar folhas.</p>
+            <p class="muted">Registre uma compra só com o valor total, sem detalhar folhas.</p>
             <div class="field"><label for="addCliente">Cliente</label><input type="text" id="addCliente" list="clientesList" autocomplete="off" maxlength="80" required></div>
             <div class="field-row">
                 <div class="field"><label for="addValorTotal">Valor total</label><div class="input-affix"><span>R$</span><input type="number" id="addValorTotal" inputmode="decimal" min="0.01" step="0.01" placeholder="0,00" required></div></div>
@@ -429,7 +468,7 @@
                 <div class="field"><label for="editTrabalho">Trabalho extra</label><div class="input-affix"><span>R$</span><input type="number" id="editTrabalho" inputmode="decimal" min="0" step="0.01"></div></div>
             </div>
             <div class="field" id="editManualField" hidden>
-                <label for="editValorTotalManual">Valor total avulso</label>
+                <label for="editValorTotalManual">Valor total</label>
                 <div class="input-affix"><span>R$</span><input type="number" id="editValorTotalManual" inputmode="decimal" min="0" step="0.01"></div>
                 <p class="field-hint">Impressão registrada só com valor. Preencher folhas ou extras troca para cálculo automático.</p>
             </div>
@@ -508,46 +547,7 @@
     </div>
 </dialog>
 
-<dialog class="dlg dlg-wide" id="dlgPdf" aria-labelledby="pdfTitle">
-    <div class="dlg-form">
-        <header class="dlg-head">
-            <div class="panel-title"><span class="head-ico" data-icon="file-text" data-icon-size="34"></span><div><h2 id="pdfTitle">Relatórios em PDF</h2><p class="panel-sub">Gere relatórios e exporte seus dados em PDF</p></div></div>
-            <button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button>
-        </header>
-        <div class="dlg-body pdf-layout" id="pdfBuilder">
-            <fieldset class="pdf-types">
-                <legend class="sr-only">Tipo de relatório</legend>
-                <label class="pdf-type"><input type="radio" name="pdfTipo" value="completo" checked><span class="pdf-type-ico" data-icon="users" data-icon-size="24"></span><span class="pdf-type-text"><strong>Relatório completo</strong><small>Totais, gráficos e tabela por cliente</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
-                <label class="pdf-type"><input type="radio" name="pdfTipo" value="resumo"><span class="pdf-type-ico" data-icon="user" data-icon-size="24"></span><span class="pdf-type-text"><strong>Resumo por cliente</strong><small>Financeiro consolidado</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
-                <label class="pdf-type"><input type="radio" name="pdfTipo" value="cliente"><span class="pdf-type-ico" data-icon="printer" data-icon-size="24"></span><span class="pdf-type-text"><strong>Por cliente</strong><small>Todas as impressões de uma pessoa</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
-                <label class="pdf-type"><input type="radio" name="pdfTipo" value="periodo"><span class="pdf-type-ico" data-icon="calendar" data-icon-size="24"></span><span class="pdf-type-text"><strong>Por período</strong><small>Filtrado por data</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
-                <label class="pdf-type"><input type="radio" name="pdfTipo" value="unica"><span class="pdf-type-ico" data-icon="shield-check" data-icon-size="24"></span><span class="pdf-type-text"><strong>Comprovante</strong><small>Uma impressão específica</small></span><span class="pdf-check" data-icon="check" data-icon-size="14"></span></label>
-            </fieldset>
-            <div class="pdf-config">
-                <div class="pdf-head"><span class="head-ico" data-icon="chart-column" data-icon-size="30"></span><div><h3 id="pdfTypeTitle">Relatório completo</h3><p class="panel-sub" id="pdfTypeSub"></p></div></div>
-                <div id="pdfConfigPanel" class="pdf-fields"></div>
-                <div id="pdfPreviewBox" class="pdf-preview" aria-live="polite"></div>
-            </div>
-        </div>
-        <div class="dlg-body pdf-result" id="pdfResult" hidden>
-            <div class="pdf-result-icon" aria-hidden="true"></div>
-            <h3>PDF pronto</h3>
-            <p class="muted" id="pdfActionFilename"></p>
-            <div class="pdf-result-actions">
-                <button type="button" class="btn btn-primary" id="pdfActionView" data-icon="eye">Visualizar</button>
-                <button type="button" class="btn btn-secondary" id="pdfActionDownload" data-icon="download">Baixar</button>
-            </div>
-        </div>
-        <footer class="dlg-foot" id="pdfFoot">
-            <button type="button" class="btn btn-secondary" data-close data-icon="x">Cancelar</button>
-            <button type="button" class="btn btn-primary" id="pdfGenerateBtn" data-icon="file-text">Gerar PDF</button>
-        </footer>
-        <footer class="dlg-foot" id="pdfResultFoot" hidden>
-            <button type="button" class="btn btn-secondary" id="pdfBackBtn">Novo relatório</button>
-            <button type="button" class="btn btn-ghost" data-close>Fechar</button>
-        </footer>
-    </div>
-</dialog>
+
 
 </body>
 </html>
