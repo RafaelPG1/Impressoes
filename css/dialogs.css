@@ -149,3 +149,11 @@ label.btn { cursor: pointer; }
     .dlg .field-row { grid-template-columns: minmax(0, 1fr); }
     #editAutoFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Escolha de cliente homônimo */
+.pessoa-opts { display: flex; flex-direction: column; gap: var(--s-2); margin-block: var(--s-3); }
+.pessoa-opt { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3); border: 1px solid var(--line-2); border-radius: var(--r-md); background: var(--field); cursor: pointer; }
+.pessoa-opt:has(input:checked) { border-color: var(--cyan-text); }
+.pessoa-opt:has(input:focus-visible) { box-shadow: 0 0 0 3px rgb(77 166 255 / 0.28); }
+.pessoa-opt span { display: flex; flex-direction: column; gap: 2px; }
+.pessoa-opt small { color: var(--text-2); }

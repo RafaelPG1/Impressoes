@@ -103,6 +103,31 @@ class FirebaseManager {
 
     // ── Clientes ────────────────────────────────────────────────────────────
 
+    /**
+     * Clientes que podem ser "a mesma pessoa" do nome digitado: o próprio nome ou
+     * "nome (detalhe)". Usado para perguntar antes de juntar duas pessoas homônimas.
+     */
+    async candidatosCliente(nome) {
+        const base = normNome(nome);
+        if (!base) return [];
+        const snap = await getDocs(this._col('clientes'));
+        const achados = snap.docs.filter((d) => {
+            const n = normNome(d.data().nome);
+            return n === base || n.startsWith(base + ' (');
+        });
+        return Promise.all(achados.map(async (d) => {
+            const imp = await this._impressoesDoCliente(d.id);
+            const aberto = imp.reduce((t, i) => t + Math.max(0, round2((i.valorTotal || 0) - (i.valorPago || 0))), 0);
+            return { id: d.id, nome: d.data().nome, aberto: round2(aberto), qtd: imp.length };
+        }));
+    }
+
+    async nomeLivre(nome) {
+        const n = normNome(nome);
+        const snap = await getDocs(this._col('clientes'));
+        return !snap.docs.some((d) => normNome(d.data().nome) === n);
+    }
+
     async _getOrCreateCliente(nome) {
         const nomeTrim = (nome || '').trim().replace(/\s+/g, ' ');
         if (!nomeTrim) throw new Error('Nome do cliente é obrigatório');

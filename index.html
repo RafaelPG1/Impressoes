@@ -366,6 +366,25 @@
     </form>
 </dialog>
 
+<dialog class="dlg dlg-sm" id="dlgPessoa" aria-labelledby="pessoaTitle">
+    <form method="dialog" class="dlg-form" id="pessoaForm">
+        <header class="dlg-head"><h2 id="pessoaTitle">Qual cliente?</h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>
+        <div class="dlg-body">
+            <p id="pessoaMsg"></p>
+            <div class="pessoa-opts" id="pessoaOpts" role="radiogroup" aria-labelledby="pessoaTitle"></div>
+            <div class="field" id="pessoaDetalheField" hidden>
+                <label for="pessoaDetalhe">O que diferencia essa pessoa?</label>
+                <input type="text" id="pessoaDetalhe" maxlength="40" autocomplete="off" placeholder="ex.: sala 2, filha da Ana">
+                <span class="field-error" id="pessoaErro" role="alert"></span>
+            </div>
+        </div>
+        <footer class="dlg-foot">
+            <button type="button" class="btn btn-secondary" data-close>Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="pessoaOk" value="ok">Continuar</button>
+        </footer>
+    </form>
+</dialog>
+
 <dialog class="dlg dlg-sm" id="dlgNotice" aria-labelledby="noticeTitle">
     <div class="dlg-form">
         <header class="dlg-head"><h2 id="noticeTitle"></h2><button type="button" class="icon-btn" data-close data-icon="x" aria-label="Fechar"></button></header>

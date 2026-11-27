@@ -4,6 +4,8 @@
 
 import { state, on } from '../state.js';
 import { addImpression, tipoPrecoLabel } from '../actions.js';
+import { store } from '../services/firestore.js';
+import { openDialog, closeDialog } from '../ui/dialog.js';
 import { notify } from '../ui/feedback.js';
 import { calcTotal, money, esc } from '../utils/format.js';
 
@@ -100,6 +102,47 @@ export function clearForm() {
     renderTotal();
 }
 
+/**
+ * Pergunta "é a mesma pessoa?" quando já existe cliente com esse nome.
+ * Resolve com o nome exato do cliente a usar, ou null se cancelar.
+ */
+function escolherPessoa(nome, candidatos) {
+    const dlg = $('dlgPessoa'), opts = $('pessoaOpts'), det = $('pessoaDetalhe'), erro = $('pessoaErro');
+    $('pessoaMsg').textContent = `Já existe cliente com o nome "${nome}". Esta compra é de qual?`;
+    opts.innerHTML = candidatos.map((c, i) => `
+        <label class="pessoa-opt"><input type="radio" name="pessoa" value="${esc(c.id)}" ${i === 0 ? 'checked' : ''}>
+            <span><strong>${esc(c.nome)}</strong><small>${c.aberto > 0 ? 'Deve ' + money(c.aberto) : 'Sem dívida'} · ${c.qtd} impressão(ões)</small></span></label>`).join('')
+        + `<label class="pessoa-opt"><input type="radio" name="pessoa" value="__nova"><span><strong>Outra pessoa</strong><small>Cria um novo cliente com o mesmo nome</small></span></label>`;
+    const nova = () => opts.querySelector('input:checked').value === '__nova';
+    const sync = () => { $('pessoaDetalheField').hidden = !nova(); erro.textContent = ''; if (nova()) det.focus(); };
+    opts.addEventListener('change', sync);
+    det.value = ''; sync();
+    dlg.returnValue = '';
+    openDialog(dlg);
+    opts.querySelector('input:checked').focus();
+
+    return new Promise((resolve) => {
+        const ok = async (ev) => {
+            if (!nova()) return;                       // "mesma pessoa": deixa o diálogo fechar
+            ev.preventDefault();
+            const d = det.value.trim().replace(/\s+/g, ' ');
+            if (!d) { erro.textContent = 'Escreva algo para diferenciar (ex.: sala 2).'; return; }
+            const novoNome = `${nome} (${d})`;
+            if (!(await store.nomeLivre(novoNome))) { erro.textContent = 'Já existe um cliente com esse nome e detalhe.'; return; }
+            dlg.dataset.nome = novoNome;
+            closeDialog(dlg, 'ok');
+        };
+        $('pessoaOk').addEventListener('click', ok);
+        dlg.addEventListener('close', () => {
+            $('pessoaOk').removeEventListener('click', ok);
+            opts.removeEventListener('change', sync);
+            if (dlg.returnValue !== 'ok') return resolve(null);
+            const sel = opts.querySelector('input:checked').value;
+            resolve(sel === '__nova' ? dlg.dataset.nome : candidatos.find((c) => c.id === sel).nome);
+        }, { once: true });
+    });
+}
+
 async function submit(e) {
     e.preventDefault();
     const d = readForm();
@@ -117,8 +160,24 @@ async function submit(e) {
 
     const valorTotal = renderTotal();
     el.submit.disabled = true;
+
+    // Nome já existe? Pergunta se é a mesma pessoa. Se digitou "Nome (detalhe)" completo, é explícito: não pergunta.
+    let nomeFinal = d.nome;
+    if (!/\)\s*$/.test(d.nome)) {
+        try {
+            const cands = await store.candidatosCliente(d.nome);
+            if (cands.length) {
+                nomeFinal = await escolherPessoa(d.nome, cands);
+                if (!nomeFinal) { el.submit.disabled = false; return; }
+            }
+        } catch (err) {
+            console.error('[CLIENTE] não consegui checar homônimos:', err);
+            notify.error('Não foi possível verificar clientes com o mesmo nome. Tente de novo.');
+            el.submit.disabled = false; return;
+        }
+    }
     const ok = await addImpression({
-        cliente: d.nome, tipoImpressao: d.tipo, tipoPreco: tipoPrecoLabel(d.tipo),
+        cliente: nomeFinal, tipoImpressao: d.tipo, tipoPreco: tipoPrecoLabel(d.tipo),
         folhasNormais: d.folhasNormais, folhasOffset: d.folhasOffset,
         projetoCanva: d.projetoCanva, trabalho: d.trabalho,
         valorTotal, valorPago: 0, statusPagamento: 'pendente',
